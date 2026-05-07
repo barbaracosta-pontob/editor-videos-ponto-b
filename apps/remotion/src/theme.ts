@@ -1,0 +1,86 @@
+/**
+ * Tema visual fixo do template Ponto B.
+ */
+
+export const colors = {
+  navy: "#0A1628",
+  navyDeep: "#050B14",
+  red: "#E63946",
+  redDeep: "#C72A38",
+  white: "#FFFFFF",
+  whiteSoft: "#F4F6F8",
+  yellow: "#F4C430",
+  green: "#2EC27E",
+  textMuted: "#8B95A1",
+} as const;
+
+export const DEFAULT_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+export const typography = {
+  fontFamily: DEFAULT_FONT_FAMILY,
+  weightHero: 900,
+  weightTitle: 800,
+  weightBody: 600,
+  weightCaption: 500,
+  sizeHero: 96,
+  sizeTitle: 72,
+  sizeSubtitle: 48,
+  sizeBody: 44,
+  sizeCaption: 32,
+  trackingTight: -1.5,
+  trackingNormal: 0,
+  trackingWide: 2,
+  lineHeightTight: 1.0,
+  lineHeightBody: 1.3,
+} as const;
+
+export const spacing = {
+  xs: 8,
+  sm: 16,
+  md: 32,
+  lg: 64,
+  xl: 96,
+  xxl: 144,
+} as const;
+
+export const makeCorDestaque = (
+  corPrimaria?: string,
+  corSecundaria?: string,
+) => (cor: "primaria" | "secundaria" | "branco"): string => {
+  if (cor === "primaria") return corPrimaria ?? colors.red;
+  if (cor === "secundaria") return corSecundaria ?? colors.yellow;
+  return colors.white;
+};
+
+export const resolveFontFamily = (fonteFamilia?: string): string =>
+  fonteFamilia && fonteFamilia.trim() ? fonteFamilia : DEFAULT_FONT_FAMILY;
+
+export const buildTokenCorMap = (
+  tokens: string[],
+  palavras: Array<{ palavra: string; cor: string }>,
+): (string | null)[] => {
+  const corMap: (string | null)[] = new Array(tokens.length).fill(null);
+  for (const pw of palavras) {
+    const palavraLimpa = pw.palavra.toLowerCase().replace(/[.,!?;:]/g, "");
+    const palavraTokens = palavraLimpa.split(/\s+/).filter(Boolean);
+    let ti = 0;
+    while (ti < tokens.length) {
+      const candidates: number[] = [];
+      let j = ti;
+      while (j < tokens.length && candidates.length < palavraTokens.length) {
+        if (tokens[j].trim()) candidates.push(j);
+        j++;
+      }
+      if (candidates.length === palavraTokens.length) {
+        const match = candidates.every((idx, k) =>
+          tokens[idx].trim().replace(/[.,!?;:]/g, "").toLowerCase() === palavraTokens[k]
+        );
+        if (match) {
+          candidates.forEach((idx) => { corMap[idx] = pw.cor; });
+        }
+      }
+      ti++;
+    }
+  }
+  return corMap;
+};

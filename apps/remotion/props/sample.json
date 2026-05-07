@@ -1,0 +1,76 @@
+{
+  "duracao_total_estimada": 66,
+  "video_original_path": "jobs/teste01/video.mp4",
+  "cenas": [
+    {
+      "tipo": "Hook",
+      "titulo": "VIVER COM 20 MIL POR MÊS EXIGE 2 MILHÕES",
+      "palavras_destacadas": [
+        { "palavra": "20 MIL", "cor": "primaria" },
+        { "palavra": "2 MILHÕES", "cor": "primaria" }
+      ],
+      "video_path": "jobs/teste01/video.mp4",
+      "start_segundos": 0,
+      "duracao_segundos": 6,
+      "animacao_entrada": "spring"
+    },
+    {
+      "tipo": "FraseImpacto",
+      "texto": "A maioria investe certo. Mas no instrumento errado.",
+      "palavras_destacadas": [{ "palavra": "instrumento errado", "cor": "primaria" }],
+      "alinhamento": "centro",
+      "duracao_segundos": 5,
+      "fundo": "navy"
+    },
+    {
+      "tipo": "ComparativoNumerico",
+      "metrica_nome": "Capital necessário pra render 20k/mês",
+      "metrica_unidade": "R$",
+      "lados": [
+        { "valor": "2 mi", "rotulo": "Renda fixa tradicional", "eh_destaque": false },
+        { "valor": "500k", "rotulo": "Com opções estruturadas", "eh_destaque": true }
+      ],
+      "visualizacao": "numeros_grandes",
+      "duracao_segundos": 7
+    },
+    {
+      "tipo": "TransicaoTexto",
+      "texto": "O problema não é o quanto você tem",
+      "duracao_segundos": 3,
+      "fundo": "preto"
+    },
+    {
+      "tipo": "ListaPontos",
+      "titulo": "3 erros que travam a renda passiva",
+      "pontos": [
+        "Concentrar tudo em renda fixa",
+        "Ignorar o custo de oportunidade",
+        "Não estruturar o fluxo de retirada"
+      ],
+      "numerado": true,
+      "duracao_segundos": 9,
+      "fundo": "navy"
+    },
+    {
+      "tipo": "VideoCitacao",
+      "video_path": "jobs/teste01/video.mp4",
+      "start_segundos": 28,
+      "duracao_segundos": 10,
+      "nome_mentor": "Mentor",
+      "cargo_mentor": "Especialista",
+      "frases": [
+        "Não é sobre rendimento alto",
+        "É sobre consistência no fluxo"
+      ],
+      "estilo_lower_third": "barra_inferior"
+    },
+    {
+      "tipo": "CTA",
+      "texto_principal": "Comente MARATONA aqui embaixo",
+      "texto_secundario": "Vou te enviar a inscrição gratuita",
+      "duracao_segundos": 6,
+      "mostrar_seta": true,
+      "cor_seta": "primaria"
+    }
+  ]
+}

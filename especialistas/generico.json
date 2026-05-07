@@ -1,0 +1,11 @@
+{
+  "slug": "generico",
+  "nome": "Especialista",
+  "cargo": "Expert",
+  "nicho": "",
+  "cor_primaria": "#E63946",
+  "cor_secundaria": "#F4C430",
+  "posicionamento_texto": "rodape",
+  "estilo_destaque": "primaria",
+  "brief_padrao": ""
+}

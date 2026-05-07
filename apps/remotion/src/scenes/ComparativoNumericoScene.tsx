@@ -1,0 +1,162 @@
+import {
+  AbsoluteFill,
+  useCurrentFrame,
+  useVideoConfig,
+  spring,
+  interpolate,
+} from "remotion";
+import type { ComparativoNumerico } from "@pontob/schema";
+import { colors, typography, spacing, resolveFontFamily } from "../theme";
+
+function valorFontSize(valor: string): number {
+  const len = String(valor).length;
+  if (len <= 4)  return 120;
+  if (len <= 7)  return 96;
+  if (len <= 10) return 72;
+  if (len <= 14) return 56;
+  return 44;
+}
+
+export const ComparativoNumericoScene: React.FC<{
+  cena: ComparativoNumerico;
+  corPrimaria?: string;
+  corSecundaria?: string;
+  fonteFamilia?: string;
+}> = ({ cena, corPrimaria, corSecundaria, fonteFamilia }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const accentColor = cena.cor_destaque ?? corPrimaria ?? colors.red;
+  const fontFamily = resolveFontFamily(fonteFamilia);
+
+  const entrada = spring({ frame, fps, config: { damping: 12, stiffness: 80 } });
+  const opacity = interpolate(entrada, [0, 1], [0, 1]);
+  const translateY = interpolate(entrada, [0, 1], [40, 0]);
+
+  return (
+    <AbsoluteFill>
+      <AbsoluteFill style={{
+        background: "linear-gradient(180deg, transparent 20%, rgba(0,0,0,0.78) 100%)",
+        pointerEvents: "none",
+      }} />
+      <AbsoluteFill
+        style={{
+          justifyContent: "flex-end",
+          alignItems: "center",
+          padding: `0 ${spacing.lg}px ${spacing.xxl}px`,
+          flexDirection: "column",
+          gap: spacing.lg,
+        }}
+      >
+        <div
+          style={{
+            opacity,
+            transform: `translateY(${translateY}px)`,
+            fontFamily,
+            fontWeight: typography.weightBody,
+            fontSize: typography.sizeCaption,
+            color: colors.textMuted,
+            textAlign: "center",
+            textTransform: "uppercase",
+            letterSpacing: typography.trackingWide,
+          }}
+        >
+          {cena.metrica_nome}
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "stretch",
+            gap: spacing.md,
+            width: "100%",
+          }}
+        >
+          {cena.lados.map((lado, i) => {
+            const delay = i * 4;
+            const ladoEntrada = spring({
+              frame: Math.max(0, frame - delay),
+              fps,
+              config: { damping: 12, stiffness: 80 },
+            });
+            const ladoOpacity = interpolate(ladoEntrada, [0, 1], [0, 1]);
+            const ladoY = interpolate(ladoEntrada, [0, 1], [30, 0]);
+
+            return (
+              <div
+                key={i}
+                style={{
+                  opacity: ladoOpacity,
+                  transform: `translateY(${ladoY}px)`,
+                  flex: 1,
+                  minWidth: 0,
+                  maxWidth: 380,
+                  backgroundColor: lado.eh_destaque
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(255,255,255,0.04)",
+                  border: lado.eh_destaque
+                    ? `3px solid ${accentColor}`
+                    : "2px solid rgba(255,255,255,0.1)",
+                  borderRadius: 24,
+                  padding: `${spacing.lg}px ${spacing.md}px`,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: spacing.sm,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily,
+                    fontWeight: typography.weightHero,
+                    fontSize: valorFontSize(String(lado.valor)),
+                    lineHeight: 1.05,
+                    color: lado.eh_destaque ? accentColor : colors.whiteSoft,
+                    letterSpacing: typography.trackingTight,
+                    textAlign: "center",
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
+                    width: "100%",
+                  }}
+                >
+                  {lado.valor}
+                </div>
+                <div
+                  style={{
+                    fontFamily,
+                    fontWeight: typography.weightBody,
+                    fontSize: typography.sizeCaption,
+                    color: colors.textMuted,
+                    textTransform: "uppercase",
+                    letterSpacing: typography.trackingWide,
+                    textAlign: "center",
+                    wordBreak: "break-word",
+                    width: "100%",
+                  }}
+                >
+                  {lado.rotulo}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div
+          style={{
+            opacity: opacity * 0.6,
+            fontFamily,
+            fontWeight: typography.weightCaption,
+            fontSize: typography.sizeCaption,
+            color: colors.textMuted,
+            textAlign: "center",
+          }}
+        >
+          em {cena.metrica_unidade}
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};

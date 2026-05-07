@@ -1,0 +1,548 @@
+/* ── Layout geral ─────────────────────────────────────────────── */
+
+.root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Topbar ───────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 44px;
+  border-bottom: 1px solid var(--b-soft);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.topbarLogo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.topbarLogo span {
+  background: linear-gradient(135deg, #1D5EAE 0%, #38DCA8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.topbarSep {
+  color: var(--b-mid);
+  font-size: 13px;
+}
+
+.topbarPage {
+  font-size: 15px;
+  color: var(--ink-3);
+}
+
+/* ── Body ─────────────────────────────────────────────────────── */
+
+.body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────── */
+
+.sidebar {
+  width: 240px;
+  border-right: 1px solid var(--b-soft);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebarHeader {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--b-faint);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebarTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebarHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btnIcon {
+  font-size: 15px;
+  background: transparent;
+  border: 1px solid var(--b-mid);
+  color: var(--ink-3);
+  border-radius: var(--r-sm);
+  padding: 3px 8px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnIcon:hover {
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.btnNew {
+  font-size: 15px;
+  background: var(--brand-dim);
+  border: 1px solid var(--brand-border);
+  color: var(--brand);
+  border-radius: var(--r-sm);
+  padding: 3px 9px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnNew:hover {
+  opacity: 0.85;
+}
+
+.sidebarList {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sidebarEmpty {
+  padding: 20px 14px;
+  font-size: 13px;
+  color: var(--ink-ghost);
+  text-align: center;
+}
+
+.sidebarItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--b-faint);
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+}
+
+.sidebarItem:hover {
+  background: var(--surface-raised);
+}
+
+.sidebarItem.active {
+  background: var(--surface-raised);
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.itemInfo {
+  overflow: hidden;
+}
+
+.itemName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemName.placeholder {
+  color: var(--ink-ghost);
+}
+
+.itemSub {
+  font-size: 15px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Formulário ───────────────────────────────────────────────── */
+
+.formArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 40px;
+}
+
+.formEmpty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--ink-ghost);
+}
+
+.formEmptyIcon {
+  font-size: 32px;
+}
+
+.formEmptyLabel {
+  font-size: 15px;
+}
+
+.formCard {
+  max-width: 560px;
+}
+
+/* ── Cabeçalho do form ────────────────────────────────────────── */
+
+.formHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.formAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.formName {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.formSlug {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-family: monospace;
+}
+
+/* ── Seção ────────────────────────────────────────────────────── */
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--b-faint);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  margin-top: 8px;
+}
+
+/* ── Campo ────────────────────────────────────────────────────── */
+
+.field {
+  margin-bottom: 18px;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.input {
+  width: 100%;
+  background: var(--surface-raised);
+  border: 1px solid var(--b-mid);
+  border-radius: var(--r-md);
+  padding: 9px 11px;
+  color: var(--ink);
+  font-size: 15px;
+  outline: none;
+  line-height: 1.6;
+}
+
+.input:focus {
+  border-color: var(--b-strong);
+}
+
+.inputHint {
+  font-size: 15px;
+  color: var(--ink-ghost);
+  margin-top: 4px;
+}
+
+.colorRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.colorPicker {
+  width: 40px;
+  height: 36px;
+  padding: 2px;
+  background: var(--surface-raised);
+  border: 1px solid var(--b-mid);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+/* ── Preview de cores ─────────────────────────────────────────── */
+
+.colorPreview {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 12px 14px;
+  background: var(--surface-raised);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--b-soft);
+}
+
+.colorSwatch {
+  flex: 1;
+  height: 32px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ── Grid de 2 colunas ────────────────────────────────────────── */
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+/* ── Feedback ─────────────────────────────────────────────────── */
+
+.feedbackOk {
+  margin-bottom: 16px;
+  padding: 9px 14px;
+  border-radius: var(--r-md);
+  background: var(--green-dim);
+  border: 1px solid rgba(62, 207, 142, 0.2);
+  font-size: 13px;
+  color: var(--green);
+}
+
+.feedbackErr {
+  margin-bottom: 16px;
+  padding: 9px 14px;
+  border-radius: var(--r-md);
+  background: var(--red-dim);
+  border: 1px solid rgba(229, 83, 75, 0.2);
+  font-size: 13px;
+  color: var(--red);
+}
+
+/* ── Ações ────────────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btnPrimary {
+  background: #38DCA8;
+  color: #0C0C0C;
+  border: 1px solid transparent;
+  border-radius: var(--r-lg);
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnPrimary:hover {
+  opacity: 0.88;
+}
+
+.btnPrimary:disabled {
+  background: var(--brand-dim);
+  color: var(--brand);
+  border-color: var(--brand-border);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btnCancel {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px solid var(--b-mid);
+  border-radius: var(--r-lg);
+  padding: 10px 20px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btnCancel:hover {
+  border-color: var(--b-strong);
+  color: var(--ink);
+}
+
+.btnDelete {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px solid var(--b-mid);
+  border-radius: var(--r-md);
+  padding: 7px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btnDelete:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.btnDeleteConfirm {
+  background: var(--red);
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deleteArea {
+  margin-left: auto;
+}
+
+.btnDeleteCancel {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px solid var(--b-soft);
+  border-radius: var(--r-md);
+  padding: 5px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ── Logos ─────────────────────────────────────────────────────────── */
+
+.logoGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.logoItem {
+  position: relative;
+  width: 96px;
+  background: var(--surface-raised);
+  border: 1px solid var(--b-soft);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 8px 6px;
+  gap: 4px;
+}
+
+.logoThumb {
+  width: 72px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+}
+
+.logoName {
+  font-size: 10px;
+  color: var(--ink-3);
+  text-align: center;
+  word-break: break-all;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoDelete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  background: rgba(200,50,50,0.8);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+
+.logoUpload {
+  width: 96px;
+  height: 90px;
+  background: var(--surface-raised);
+  border: 1px dashed var(--b-soft);
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+  text-align: center;
+  padding: 8px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.logoUpload:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}

@@ -1,0 +1,13 @@
+{
+  "slug": "dr-denise-carvalho",
+  "nome": "Denise Carvalho",
+  "cargo": "Doutora",
+  "nicho": "Saúde",
+  "cor_primaria": "#803838",
+  "cor_secundaria": "#688d7a",
+  "posicionamento_texto": "rodape",
+  "estilo_destaque": "primaria",
+  "brief_padrao": "",
+  "fonte_url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap",
+  "fonte_familia": "'Plus Jakarta Sans', sans-serif"
+}

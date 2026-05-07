@@ -1,0 +1,235 @@
+"use client";
+
+import { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
+import { ProcessingView } from "@/components/ProcessingView";
+import { EditorView } from "@/components/EditorView";
+import { ActionButton } from "@/components/ActionButton";
+import type { Job } from "@/types";
+import styles from "./page.module.css";
+
+// ── Tipos ─────────────────────────────────────────────────────────────────────
+
+type Screen = "upload" | "processing" | "editor";
+
+type EspecialistaItem = {
+  slug: string;
+  nome: string;
+  cargo: string;
+  cor_primaria: string;
+};
+
+// ── Dados estáticos ───────────────────────────────────────────────────────────
+
+const PIPELINE_STEPS = [
+  { num: "01", label: "Transcrição", detail: "Whisper extrai a fala com timestamps" },
+  { num: "02", label: "Análise",     detail: "Claude identifica cenas e monta a estrutura" },
+  { num: "03", label: "Renderização", detail: "Remotion gera o reel em 9:16" },
+];
+
+// ── Home ──────────────────────────────────────────────────────────────────────
+
+export default function Home() {
+  const [screen, setScreen] = useState<Screen>("upload");
+  const [job, setJob] = useState<Job | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [brief, setBrief] = useState("");
+  const [especialistaSlug, setEspecialistaSlug] = useState("generico");
+  const [especialistas, setEspecialistas] = useState<EspecialistaItem[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/especialistas")
+      .then((r) => r.json())
+      .then((data: EspecialistaItem[]) => setEspecialistas(data))
+      .catch(() => {});
+  }, []);
+
+  function handleFile(f: File) {
+    if (!f.type.startsWith("video/")) return;
+    setFile(f);
+  }
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  }, []);
+
+  async function handleSubmit() {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("video", file);
+    formData.append("brief", brief);
+    formData.append("especialista_slug", especialistaSlug);
+    setScreen("processing");
+    try {
+      const res = await fetch("/api/jobs", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido");
+      setJob(data as Job);
+      setScreen("editor");
+    } catch (err) {
+      console.error(err);
+      alert(`Erro ao processar: ${err instanceof Error ? err.message : err}`);
+      setScreen("upload");
+    }
+  }
+
+  function handleNew() {
+    setScreen("upload");
+    setFile(null);
+    setBrief("");
+    setJob(null);
+  }
+
+  if (screen === "processing") return <ProcessingView fileName={file?.name ?? ""} />;
+  if (screen === "editor" && job) return <EditorView job={job} onNew={handleNew} />;
+
+  return (
+    <main className={styles.root}>
+
+      {/* Painel esquerdo */}
+      <div className={styles.leftPanel}>
+        <div className={styles.gridBg} />
+
+        <div className={styles.leftContent}>
+          <div className={styles.badge}>
+            <span className={styles.badgeDot} />
+            <span className={styles.badgeLabel}>Pipeline ativo</span>
+          </div>
+
+          <h1 className={styles.title}>
+            Ponto B<br /><span>Editor de Reels</span>
+          </h1>
+
+          <p className={styles.description}>
+            Suba o vídeo bruto de um expert, descreva o que priorizar
+            e o pipeline gera o reel editado automaticamente.
+          </p>
+
+          <div className={styles.pipelineSteps}>
+            {PIPELINE_STEPS.map((item, i) => (
+              <div key={item.num} className={styles.pipelineStep}>
+                {i < PIPELINE_STEPS.length - 1 && (
+                  <div className={styles.stepConnector} />
+                )}
+                <div className={styles.stepNum}>{item.num}</div>
+                <div className={styles.stepBody}>
+                  <div className={styles.stepLabel}>{item.label}</div>
+                  <div className={styles.stepDetail}>{item.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.leftFooter}>Ponto B — uso interno</div>
+      </div>
+
+      {/* Painel direito */}
+      <div className={styles.rightPanel}>
+
+        <div className={styles.formHeading}>
+          <h2 className={styles.formTitle}>Novo reel</h2>
+          <p className={styles.formSubtitle}>Configure e submeta o vídeo para processamento</p>
+        </div>
+
+        {/* Drop zone */}
+        <div
+          className={`${styles.dropzone} ${dragging ? styles.dragging : ""} ${file ? styles.hasFile : ""}`}
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+        >
+          <div className={`${styles.dropzoneIcon} ${file ? styles.hasFile : ""}`}>
+            {file ? "✓" : "↑"}
+          </div>
+
+          {file ? (
+            <div style={{ textAlign: "center" }}>
+              <div className={styles.dropzoneFileName}>{file.name}</div>
+              <div className={styles.dropzoneFileMeta}>
+                {(file.size / 1024 / 1024).toFixed(1)} MB · clique para trocar
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center" }}>
+              <div className={styles.dropzoneHint}>Arraste ou clique para selecionar</div>
+              <div className={styles.dropzoneBadges}>
+                {["MP4", "MOV", "AVI"].map((ext) => (
+                  <span key={ext} className={styles.extBadge}>{ext}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="video/*"
+            style={{ display: "none" }}
+            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+          />
+        </div>
+
+        <div className={styles.divider} />
+
+        {/* Especialista */}
+        <div className={styles.fieldGroup}>
+          <label className={styles.fieldLabel}>Especialista</label>
+          <div className={styles.selectWrapper}>
+            <select
+              className={styles.select}
+              value={especialistaSlug}
+              onChange={(e) => setEspecialistaSlug(e.target.value)}
+            >
+              <option value="generico">Sem especialista — genérico</option>
+              {especialistas
+                .filter((e) => e.slug !== "generico")
+                .map((e) => (
+                  <option key={e.slug} value={e.slug}>
+                    {e.nome}{e.cargo ? ` — ${e.cargo}` : ""}
+                  </option>
+                ))}
+            </select>
+            <span className={styles.selectArrow}>▾</span>
+          </div>
+          <div className={styles.fieldHint}>
+            <Link href="/especialistas">Gerenciar especialistas →</Link>
+          </div>
+        </div>
+
+        {/* Brief */}
+        <div className={styles.fieldGroup} style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 5 }}>
+            <label className={styles.fieldLabel} style={{ margin: 0 }}>
+              Brief{" "}
+              <span className={styles.fieldLabelOpt}>— opcional</span>
+            </label>
+            <Link href="/componentes" target="_blank" style={{ fontSize: 12, color: "var(--ink-ghost)", textDecoration: "none", whiteSpace: "nowrap" }}>
+              ver componentes →
+            </Link>
+          </div>
+          <textarea
+            className={styles.textarea}
+            value={brief}
+            onChange={(e) => setBrief(e.target.value)}
+            placeholder="Ex: priorize os comparativos, use o trecho 3:20–4:10..."
+            rows={3}
+          />
+        </div>
+
+        <ActionButton
+          onClick={handleSubmit}
+          disabled={!file}
+        >
+          {file ? "Analisar e montar reel →" : "Selecione um vídeo para começar"}
+        </ActionButton>
+      </div>
+    </main>
+  );
+}

@@ -1,0 +1,44 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  height: 52px;
+  border-bottom: 1px solid var(--b-soft);
+  background: var(--surface);
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-decoration: none;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.logo span {
+  background: linear-gradient(135deg, #1D5EAE 0%, #38DCA8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sep {
+  font-size: 14px;
+  color: var(--ink-ghost);
+  flex-shrink: 0;
+}
+
+.page {
+  font-size: 13px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.spacer {
+  flex: 1;
+}

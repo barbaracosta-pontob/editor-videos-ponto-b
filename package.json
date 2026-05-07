@@ -1,0 +1,22 @@
+{
+  "name": "pontob-video-editor",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Pipeline interno Ponto B para gerar reels com Whisper + Claude + Remotion",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/analysis"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@pontob/web",
+    "dev:remotion": "npm run dev --workspace=@pontob/remotion",
+    "build:remotion": "npm run build --workspace=@pontob/remotion",
+    "render": "npm run render --workspace=@pontob/remotion",
+    "transcribe": "python services/transcription/run.py",
+    "analyze": "npm run analyze --workspace=@pontob/analysis"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

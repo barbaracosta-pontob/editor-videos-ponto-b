@@ -127,34 +127,7 @@ mkdir -p jobs especialistas
 
 ---
 
-### 5. Cadastrar um Especialista
-
-Na raiz do projeto, crie um arquivo JSON em `especialistas/` com o slug do mentor. Use `especialistas/generico.json` como base.
-
-**`especialistas/nome-do-especialista.json`**
-```json
-{
-  "slug": "nome-do-especialista",
-  "nome": "Nome Completo",
-  "cargo": "Cargo ou especialidade",
-  "tom_de_voz": "Direto, analítico, técnico",
-  "palavras_a_evitar": ["fórmula", "segredo", "incrível"],
-  "cta_padrao": {
-    "formato": "comente_palavra",
-    "palavra_ou_evento": "PALAVRA",
-    "texto_secundario": "Vou te enviar o link gratuito"
-  },
-  "identidade_visual": {
-    "cor_destaque_primaria": "#E63946"
-  }
-}
-```
-
-Schema completo em [`docs/especialista.md`](docs/especialista.md).
-
----
-
-### 6. Subir a interface web
+### 5. Subir a interface web
 
 Na raiz do projeto (`editor-reels-ponto-b/`):
 
@@ -174,7 +147,7 @@ Na interface você consegue:
 
 ---
 
-### 7. (Opcional) Remotion Studio
+### 6. (Opcional) Remotion Studio
 
 Para visualizar e depurar cenas diretamente no player do Remotion:
 

@@ -70,3 +70,5 @@ yarn-error.log*
 # Cache
 .cache/
 .turbo/
+*.tsbuildinfo
+.interface-design/

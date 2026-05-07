@@ -19,7 +19,7 @@ Pipeline interno da Ponto B para gerar reels (1080×1920, 60–100s) a partir de
 [reel.mp4 — 9:16, 30fps, 60–100s]
 ```
 
-Tudo passa pela interface web em `localhost:3001`. Cada job persiste em `jobs/<job_id>/`.
+Tudo passa pela interface web em `localhost:3000`. Cada job persiste em `jobs/<job_id>/`.
 
 ---
 
@@ -27,18 +27,17 @@ Tudo passa pela interface web em `localhost:3001`. Cada job persiste em `jobs/<j
 
 ### Pré-requisitos
 
-Instale antes de começar:
-
-| Ferramenta | Versão mínima | Como instalar |
-|---|---|---|
-| Node.js | 20+ | https://nodejs.org |
-| Python | 3.11+ | https://www.python.org |
-| FFmpeg | qualquer | `winget install Gyan.FFmpeg` (Windows) |
+| Ferramenta | Versão mínima | Windows | macOS | Linux |
+|---|---|---|---|---|
+| Node.js | 20+ | [nodejs.org](https://nodejs.org) | `brew install node` | `nvm install 20` |
+| Python | 3.11+ | [python.org](https://www.python.org) | `brew install python@3.11` | `sudo apt install python3.11` |
+| FFmpeg | qualquer | `winget install Gyan.FFmpeg` | `brew install ffmpeg` | `sudo apt install ffmpeg` |
 
 Confirme que estão instalados:
-```powershell
-node --version
-python --version
+
+```bash
+node --version   # deve mostrar v20+
+python --version # deve mostrar 3.11+
 ffmpeg -version
 ```
 
@@ -46,9 +45,9 @@ ffmpeg -version
 
 ### 1. Clonar e instalar dependências Node
 
-```powershell
-git clone <url-do-repo>
-cd pontob-video-editor
+```bash
+git clone https://github.com/barbaracosta-pontob/editor-reels-ponto-b.git
+cd editor-reels-ponto-b
 npm install
 ```
 
@@ -58,25 +57,32 @@ O `npm install` na raiz instala tudo de uma vez — `apps/web`, `apps/remotion`,
 
 ### 2. Configurar variáveis de ambiente
 
+**Windows:**
 ```powershell
 copy .env.example .env
+```
+
+**macOS / Linux:**
+```bash
+cp .env.example .env
 ```
 
 Abra o `.env` e preencha:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...    # obrigatório — sua chave da API Claude
+ANTHROPIC_API_KEY=sk-ant-...    # obrigatório — sua chave em console.anthropic.com
 CLAUDE_MODEL=claude-sonnet-4-6  # deixe assim
 WHISPER_MODEL=large-v3          # use "small" para testar mais rápido
 WHISPER_DEVICE=auto             # auto detecta GPU se disponível
 ```
 
-> **Importante:** o `.env` deve ficar na raiz do projeto (`pontob-video-editor/.env`).
+> O `.env` deve ficar na raiz do projeto. Reinicie o servidor após qualquer alteração nele.
 
 ---
 
 ### 3. Instalar dependências Python
 
+**Windows:**
 ```powershell
 cd services\transcription
 python -m venv .venv
@@ -84,34 +90,48 @@ python -m venv .venv
 cd ..\..
 ```
 
-> Na primeira transcrição, o modelo `large-v3` é baixado automaticamente (~3 GB). Use `WHISPER_MODEL=small` no `.env` para pular isso durante testes.
+**macOS / Linux:**
+```bash
+cd services/transcription
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cd ../..
+```
+
+> Na primeira transcrição o modelo `large-v3` é baixado automaticamente (~3 GB). Use `WHISPER_MODEL=small` no `.env` para pular isso durante testes.
 
 ---
 
 ### 4. Criar pastas necessárias
 
+**Windows:**
 ```powershell
 mkdir jobs
 mkdir especialistas
+```
+
+**macOS / Linux:**
+```bash
+mkdir -p jobs especialistas
 ```
 
 ---
 
 ### 5. Cadastrar um Especialista
 
-Crie um arquivo JSON em `especialistas/` com o slug do mentor. Exemplo:
+Crie um arquivo JSON em `especialistas/` com o slug do mentor. Use `especialistas/generico.json` como base.
 
-**`especialistas/mateus-castro.json`**
+**`especialistas/nome-do-especialista.json`**
 ```json
 {
-  "slug": "mateus-castro",
-  "nome": "Mateus Castro",
-  "cargo": "Especialista em renda passiva",
+  "slug": "nome-do-especialista",
+  "nome": "Nome Completo",
+  "cargo": "Cargo ou especialidade",
   "tom_de_voz": "Direto, analítico, técnico",
   "palavras_a_evitar": ["fórmula", "segredo", "incrível"],
   "cta_padrao": {
     "formato": "comente_palavra",
-    "palavra_ou_evento": "MARATONA",
+    "palavra_ou_evento": "PALAVRA",
     "texto_secundario": "Vou te enviar o link gratuito"
   },
   "identidade_visual": {
@@ -126,11 +146,11 @@ Schema completo em [`docs/especialista.md`](docs/especialista.md).
 
 ### 6. Subir a interface web
 
-```powershell
+```bash
 npm run dev
 ```
 
-Acesse **http://localhost:3001**
+Acesse **http://localhost:3000**
 
 Na interface você consegue:
 - Fazer upload do vídeo bruto
@@ -146,18 +166,18 @@ Na interface você consegue:
 
 Para visualizar e depurar cenas diretamente no player do Remotion:
 
-```powershell
+```bash
 npm run dev:remotion
 ```
 
-Acesse **http://localhost:3000**
+Acesse **http://localhost:3001**
 
 ---
 
 ## Estrutura do repositório
 
 ```
-pontob-video-editor/
+editor-reels-ponto-b/
 ├── apps/
 │   ├── web/             # Interface Next.js — upload, revisão, renderização
 │   └── remotion/        # Componentes React → vídeo (1 componente por tipo de cena)
@@ -166,10 +186,11 @@ pontob-video-editor/
 │   └── analysis/        # Node + Anthropic SDK (Claude analisa e gera scenes.json)
 ├── packages/
 │   └── schema/          # Schema Zod compartilhado (fonte de verdade dos tipos de cena)
-├── especialistas/        # JSONs de cadastro de cada mentor (gitignored)
-├── jobs/                 # Arquivos de cada execução (gitignored)
+├── especialistas/        # JSONs de cadastro de cada mentor
+├── jobs/                 # Arquivos de cada execução — criado localmente, não versionado
 ├── docs/                 # Documentação detalhada
-└── .env                  # Variáveis de ambiente (não versionar)
+├── .env.example          # Template de variáveis de ambiente
+└── .env                  # Suas variáveis locais — não versionar
 ```
 
 ---
@@ -194,16 +215,19 @@ O Claude pode gerar 8 tipos, em qualquer ordem e quantidade (4–15 cenas):
 ## Problemas comuns
 
 **`ModuleNotFoundError: No module named 'faster_whisper'`**
-→ O `.venv` do Python não foi criado. Rode o passo 3 do setup.
+→ O `.venv` do Python não foi ativado corretamente. Refaça o passo 3.
 
 **`ANTHROPIC_API_KEY não definido`**
-→ O `.env` precisa estar na raiz do projeto (`pontob-video-editor/.env`). Reinicie o servidor após criar o arquivo.
+→ O `.env` precisa estar na raiz do projeto. Reinicie o servidor após criar o arquivo.
 
 **`spawn remotion ENOENT`**
-→ O Remotion CLI não foi instalado. Rode `npm install` na raiz do projeto.
+→ Rode `npm install` na raiz do projeto.
 
 **Primeira transcrição muito lenta**
 → O modelo `large-v3` está sendo baixado (~3 GB). Normal só na primeira vez. Use `WHISPER_MODEL=small` no `.env` para testes rápidos.
+
+**Python não encontrado no macOS**
+→ Tente `python3` em vez de `python`. Se necessário: `brew install python@3.11`.
 
 ---
 

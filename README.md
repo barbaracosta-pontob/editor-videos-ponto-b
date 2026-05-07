@@ -45,6 +45,8 @@ ffmpeg -version
 
 ### 1. Clonar e instalar dependências Node
 
+Na pasta onde você quer guardar o projeto:
+
 ```bash
 git clone https://github.com/barbaracosta-pontob/editor-reels-ponto-b.git
 cd editor-reels-ponto-b
@@ -56,6 +58,8 @@ O `npm install` na raiz instala tudo de uma vez — `apps/web`, `apps/remotion`,
 ---
 
 ### 2. Configurar variáveis de ambiente
+
+Na raiz do projeto (`editor-reels-ponto-b/`):
 
 **Windows:**
 ```powershell
@@ -82,6 +86,8 @@ WHISPER_DEVICE=auto             # auto detecta GPU se disponível
 
 ### 3. Instalar dependências Python
 
+A partir da raiz do projeto (`editor-reels-ponto-b/`):
+
 **Windows:**
 ```powershell
 cd services\transcription
@@ -98,11 +104,15 @@ python3 -m venv .venv
 cd ../..
 ```
 
+Ao final você deve estar de volta na raiz do projeto.
+
 > Na primeira transcrição o modelo `large-v3` é baixado automaticamente (~3 GB). Use `WHISPER_MODEL=small` no `.env` para pular isso durante testes.
 
 ---
 
 ### 4. Criar pastas necessárias
+
+Na raiz do projeto (`editor-reels-ponto-b/`):
 
 **Windows:**
 ```powershell
@@ -119,7 +129,7 @@ mkdir -p jobs especialistas
 
 ### 5. Cadastrar um Especialista
 
-Crie um arquivo JSON em `especialistas/` com o slug do mentor. Use `especialistas/generico.json` como base.
+Na raiz do projeto, crie um arquivo JSON em `especialistas/` com o slug do mentor. Use `especialistas/generico.json` como base.
 
 **`especialistas/nome-do-especialista.json`**
 ```json
@@ -145,6 +155,8 @@ Schema completo em [`docs/especialista.md`](docs/especialista.md).
 ---
 
 ### 6. Subir a interface web
+
+Na raiz do projeto (`editor-reels-ponto-b/`):
 
 ```bash
 npm run dev

@@ -209,7 +209,7 @@ editor-reels-ponto-b/
 
 ## Tipos de cena disponíveis
 
-O Claude pode gerar 8 tipos, em qualquer ordem e quantidade (4–15 cenas):
+O Claude pode gerar os tipos abaixo, em qualquer ordem e quantidade (4–15 cenas):
 
 | Tipo | Descrição |
 |---|---|
@@ -220,6 +220,10 @@ O Claude pode gerar 8 tipos, em qualquer ordem e quantidade (4–15 cenas):
 | `ListaPontos` | Lista de 2–5 tópicos animados em sequência |
 | `MiniCaso` | Vídeo com resultado de caso real em overlay |
 | `TransicaoTexto` | Frase curta de separação de bloco (1–4s) |
+| `GraficoBarra` | Gráfico de barras animado com dados numéricos |
+| `GraficoLinha` | Gráfico de linha animado com evolução temporal |
+| `ConviteEvento` | Convite para evento com vídeo do mentor ao fundo |
+| `CtaFullNavy` | CTA em fundo navy escuro, sem vídeo |
 | `CTA` | Encerramento com chamada de ação. Sempre último. |
 
 ---

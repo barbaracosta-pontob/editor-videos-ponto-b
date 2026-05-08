@@ -41,6 +41,16 @@ python --version # deve mostrar 3.11+
 ffmpeg -version
 ```
 
+#### Windows — liberar execução de scripts no PowerShell
+
+Por padrão o PowerShell bloqueia scripts externos (incluindo o `npm`). Abra o PowerShell **como Administrador** e rode uma vez:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Confirme com `S` quando perguntado. Feche e reabra o terminal antes de continuar.
+
 ---
 
 ### 1. Clonar e instalar dependências Node

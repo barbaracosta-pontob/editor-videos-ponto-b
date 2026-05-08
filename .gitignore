@@ -25,6 +25,7 @@ remotion-out/
 # Vídeos e dados sensíveis
 samples/
 jobs/
+!apps/web/src/app/jobs/
 
 # Banco SQLite local
 data/

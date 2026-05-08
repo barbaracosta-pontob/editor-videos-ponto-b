@@ -1,0 +1,134 @@
+.root {
+  min-height: 100vh;
+  background: var(--canvas);
+  padding: 48px 52px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 40px;
+}
+
+.back {
+  font-size: 13px;
+  color: var(--ink-3);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  display: inline-block;
+  margin-bottom: 24px;
+  transition: color 0.15s;
+}
+.back:hover { color: var(--ink-2); }
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  font-size: 14px;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty {
+  color: var(--ink-3);
+  font-size: 14px;
+  padding: 40px 0;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--b-soft);
+  border-radius: var(--r-lg);
+  padding: 16px 20px;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: var(--b-mid); }
+
+.cardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cardId {
+  font-size: 11px;
+  color: var(--ink-ghost);
+  font-family: monospace;
+  letter-spacing: 0.05em;
+}
+
+.cardFile {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metaItem {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.metaDivider {
+  font-size: 12px;
+  color: var(--ink-ghost);
+}
+
+.cardRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-size: 11px;
+  color: var(--green);
+  background: var(--green-dim);
+  border: 1px solid rgba(62, 207, 142, 0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.btnEditor {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--b-mid);
+  border-radius: var(--r-md);
+  padding: 8px 16px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btnEditor:hover {
+  background: var(--surface-float);
+  border-color: var(--b-strong);
+}

@@ -452,7 +452,7 @@ export default function ComponentesPage() {
     <div style={{ minHeight: "100vh", background: "var(--canvas)", display: "flex", flexDirection: "column" }}>
       <AppNav breadcrumb="Biblioteca de componentes" />
 
-      <div style={{ padding: "32px 40px 60px", maxWidth: 1200, width: "100%" }}>
+      <div style={{ padding: "32px 40px 60px", width: "100%" }}>
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: "var(--ink)", margin: 0, marginBottom: 8 }}>
             Biblioteca de componentes

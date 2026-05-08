@@ -26,6 +26,7 @@ remotion-out/
 samples/
 jobs/
 !apps/web/src/app/jobs/
+!apps/web/src/app/api/jobs/
 
 # Banco SQLite local
 data/

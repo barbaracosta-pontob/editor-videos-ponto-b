@@ -4,9 +4,12 @@ import {
   useVideoConfig,
   spring,
   interpolate,
+  Audio,
+  Sequence,
+  staticFile,
 } from "remotion";
 import type { CTA } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap } from "../theme";
+import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap , resolveAudioSrc } from "../theme";
 
 export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -33,6 +36,16 @@ export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={resolveAudioSrc(cena.sfx.path, staticFile)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{ backgroundColor: "rgba(8, 10, 18, 0.75)" }} />
       <AbsoluteFill
         style={{

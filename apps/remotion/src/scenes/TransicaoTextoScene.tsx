@@ -4,9 +4,12 @@ import {
   useVideoConfig,
   spring,
   interpolate,
+  Audio,
+  Sequence,
+  staticFile,
 } from "remotion";
 import type { TransicaoTexto } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily } from "../theme";
+import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
 
 export const TransicaoTextoScene: React.FC<{ cena: TransicaoTexto; fonteFamilia?: string }> = ({ cena, fonteFamilia }) => {
   const frame = useCurrentFrame();
@@ -20,6 +23,16 @@ export const TransicaoTextoScene: React.FC<{ cena: TransicaoTexto; fonteFamilia?
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={resolveAudioSrc(cena.sfx.path, staticFile)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       {/* Gradiente inferior sutil para legibilidade da transição */}
       <AbsoluteFill style={{
         background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.72) 100%)",

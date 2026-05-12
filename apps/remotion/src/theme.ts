@@ -55,6 +55,27 @@ export const makeCorDestaque = (
 export const resolveFontFamily = (fonteFamilia?: string): string =>
   fonteFamilia && fonteFamilia.trim() ? fonteFamilia : DEFAULT_FONT_FAMILY;
 
+/**
+ * Resolve o src de um asset de áudio (sfx ou música de fundo).
+ *
+ * Durante o render, o `render/route.ts` converte paths relativos
+ * ("sfx/whoosh.mp3", "musica/lofi.mp3") para URLs HTTP absolutas antes de
+ * gravar o props.json. Nesse caso a string já começa com "http" e não pode
+ * ser passada para staticFile() — o Remotion lança TypeError.
+ *
+ * No Remotion Studio local os paths chegam ainda relativos, então
+ * o caller deve passar staticFile como segundo argumento.
+ *
+ * Uso: src={resolveAudioSrc(cena.sfx.path, staticFile)}
+ */
+export const resolveAudioSrc = (
+  path: string,
+  staticFileFn: (path: string) => string,
+): string => {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return staticFileFn(path);
+};
+
 export const buildTokenCorMap = (
   tokens: string[],
   palavras: Array<{ palavra: string; cor: string }>,

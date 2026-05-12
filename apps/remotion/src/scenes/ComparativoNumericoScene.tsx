@@ -4,9 +4,12 @@ import {
   useVideoConfig,
   spring,
   interpolate,
+  Audio,
+  Sequence,
+  staticFile,
 } from "remotion";
 import type { ComparativoNumerico } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily } from "../theme";
+import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
 
 function valorFontSize(valor: string): number {
   const len = String(valor).length;
@@ -35,6 +38,16 @@ export const ComparativoNumericoScene: React.FC<{
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={resolveAudioSrc(cena.sfx.path, staticFile)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{
         background: "linear-gradient(180deg, transparent 20%, rgba(0,0,0,0.78) 100%)",
         pointerEvents: "none",

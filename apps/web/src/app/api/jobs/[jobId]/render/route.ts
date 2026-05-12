@@ -40,13 +40,28 @@ function resolveRemotionBin(): string {
   return existsSync(local) ? local : existsSync(root) ? root : `remotion${ext}`;
 }
 
+// Prefixos de assets estáticos que devem ser convertidos para URL HTTP absoluta
+// para que o Remotion possa buscá-los via rede durante o render (sem staticFile).
+const STATIC_ASSET_PREFIXES = ["sfx/", "musica/", "ambient/"];
+
+function isStaticAssetPath(val: unknown): val is string {
+  return typeof val === "string" &&
+    !val.startsWith("http") &&
+    STATIC_ASSET_PREFIXES.some((p) => val.startsWith(p));
+}
+
 function substituirVideoPaths(obj: unknown, videoUrl: string, baseUrl: string): unknown {
   if (Array.isArray(obj)) return obj.map((v) => substituirVideoPaths(v, videoUrl, baseUrl));
   if (obj && typeof obj === "object") {
     return Object.fromEntries(
       Object.entries(obj as Record<string, unknown>).map(([k, v]) => {
         if (k === "video_path" || k === "video_original_path") return [k, videoUrl];
-        // Converte logo_url relativa para absoluta (localhost:3001)
+        // Converte sfx.path e musica_fundo.path relativos para URL HTTP absoluta.
+        // O Remotion proíbe staticFile() com URLs — assets devem ser servidos via HTTP.
+        if (k === "path" && isStaticAssetPath(v)) {
+          return [k, `${baseUrl}/${(v as string).replace(/^\//, "")}`];
+        }
+        // Converte logo_url relativa para absoluta
         if (k === "logo_url" && typeof v === "string" && v.startsWith("/")) {
           return [k, `${baseUrl}${v}`];
         }

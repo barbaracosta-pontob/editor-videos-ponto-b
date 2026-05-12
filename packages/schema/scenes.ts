@@ -6,6 +6,15 @@ export const WordHighlightSchema = z.object({
 });
 export type WordHighlight = z.infer<typeof WordHighlightSchema>;
 
+export const SfxSchema = z.object({
+  path: z.string().min(1),                        // ex: "sfx/whoosh.mp3"
+  volume: z.number().min(0).max(10).default(5),   // default 5 (50% do máximo)
+  inicio_segundos: z.number().min(0).optional(),  // offset dentro da cena
+  fim_segundos: z.number().min(0).optional(),     // corta o som nesse ponto
+});
+export type Sfx = z.infer<typeof SfxSchema>;
+
+
 export const HookSchema = z.object({
   tipo: z.literal("Hook"),
   titulo: z.string().min(1).max(120),
@@ -13,6 +22,7 @@ export const HookSchema = z.object({
   palavras_destacadas: z.array(WordHighlightSchema).max(3),
   video_path: z.string().min(1),
   start_segundos: z.number().min(0),
+  sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(2).max(8),
   animacao_entrada: z.enum(["spring", "fade", "slide"]).optional(),
 });
@@ -23,6 +33,7 @@ export const FraseImpactoSchema = z.object({
   texto: z.string().min(1).max(200),
   palavras_destacadas: z.array(WordHighlightSchema).max(3).optional(),
   alinhamento: z.enum(["centro", "esquerda"]).optional(),
+  sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(3).max(10),
   fundo: z.enum(["navy", "preto", "gradiente"]).optional(),
 });
@@ -42,6 +53,7 @@ export const ComparativoNumericoSchema = z.object({
   visualizacao: z.enum(["barras", "numeros_grandes", "bonecos"]),
   duracao_segundos: z.number().min(4).max(10),
   cor_destaque: z.string().optional(),  // hex livre, ex: "#E63946"
+  sfx: SfxSchema.optional(),
 });
 export type ComparativoNumerico = z.infer<typeof ComparativoNumericoSchema>;
 
@@ -54,6 +66,7 @@ export const VideoCitacaoSchema = z.object({
   cargo_mentor: z.string().min(1),
   frases: z.array(z.string().min(1).max(80)).min(1).max(3),
   estilo_lower_third: z.enum(["barra_inferior", "card_lateral"]).optional(),
+  sfx: SfxSchema.optional(),
 });
 export type VideoCitacao = z.infer<typeof VideoCitacaoSchema>;
 
@@ -62,6 +75,7 @@ export const ListaPontosSchema = z.object({
   titulo: z.string().max(60).optional(),
   pontos: z.array(z.string().min(1).max(60)).min(2).max(5),
   numerado: z.boolean().optional(),
+  sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(5).max(15),
   fundo: z.enum(["navy", "preto", "gradiente"]).optional(),
 });
@@ -75,12 +89,14 @@ export const MiniCasoSchema = z.object({
   resultado_texto: z.string().min(1).max(100),
   contexto_texto: z.string().max(80).optional(),
   palavras_destacadas: z.array(WordHighlightSchema).max(3).optional(),
+  sfx: SfxSchema.optional(),
 });
 export type MiniCaso = z.infer<typeof MiniCasoSchema>;
 
 export const TransicaoTextoSchema = z.object({
   tipo: z.literal("TransicaoTexto"),
   texto: z.string().min(1).max(60),
+  sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(1).max(4),
   fundo: z.enum(["navy", "preto", "gradiente"]).optional(),
 });
@@ -94,6 +110,7 @@ export const CTASchema = z.object({
   duracao_segundos: z.number().min(3).max(7),
   mostrar_seta: z.boolean().optional(),
   cor_seta: z.string().optional(),  // hex livre, ex: "#F4C430"
+  sfx: SfxSchema.optional(),
 });
 export type CTA = z.infer<typeof CTASchema>;
 
@@ -107,6 +124,7 @@ export const ConviteEventoSchema = z.object({
   logo_url: z.string().url().optional(),
   logo_altura: z.number().min(24).max(1080).optional(),
   logo_posicao: z.enum(["topo", "centro", "rodape"]).optional(),
+  sfx: SfxSchema.optional(),
 });
 export type ConviteEvento = z.infer<typeof ConviteEventoSchema>;
 
@@ -124,6 +142,7 @@ export const GraficoLinhaSchema = z.object({
   mostrar_area: z.boolean().optional(),
   cor_primaria: z.string().optional(),
   cor_secundaria: z.string().optional(),
+  sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(4).max(12),
 });
 export type GraficoLinha = z.infer<typeof GraficoLinhaSchema>;
@@ -144,6 +163,7 @@ export const GraficoBarraSchema = z.object({
   barras: z.array(GraficoBarraPontoSchema).min(2).max(6),
   cor_primaria: z.string().optional(),
   cor_secundaria: z.string().optional(),
+  sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(4).max(12),
 });
 export type GraficoBarra = z.infer<typeof GraficoBarraSchema>;
@@ -164,6 +184,12 @@ export const CenaSchema = z.discriminatedUnion("tipo", [
 ]);
 export type Cena = z.infer<typeof CenaSchema>;
 
+export const MusicaFundoSchema = z.object({
+  path: z.string().min(1),          // ex: "musica/lofi-beat.mp3"
+  volume: z.number().min(0).max(10).optional(),  // 0-10, default 3
+});
+export type MusicaFundo = z.infer<typeof MusicaFundoSchema>;
+
 export const ReelPropsSchema = z
   .object({
     duracao_total_estimada: z.number().min(40).max(120),
@@ -173,6 +199,7 @@ export const ReelPropsSchema = z
     cor_secundaria: z.string().optional(),
     fonte_url: z.string().optional(),
     fonte_familia: z.string().optional(),
+    musica_fundo: MusicaFundoSchema.optional(),
   })
   .strict();
 

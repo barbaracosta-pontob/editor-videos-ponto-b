@@ -13,6 +13,8 @@ import {
   useVideoConfig,
   spring,
   interpolate,
+  Audio,
+  staticFile,
 } from "remotion";
 import { useEffect } from "react";
 import type { ReelProps, Cena } from "@pontob/schema";
@@ -156,6 +158,14 @@ export const ReelForPlayer: React.FC<ReelProps> = (props) => {
         }} />
       ) : null}
 
+      {/* Música de fundo — toca durante todo o reel */}
+      {props.musica_fundo ? (
+        <Audio
+          src={`/musica/${props.musica_fundo.path.replace(/^musica\//, "")}`}
+          volume={Math.min(1, (props.musica_fundo.volume ?? 3) / 10)}
+        />
+      ) : null}
+
       {sequencias.map(({ cena, inicioFrames, duracaoFrames, index }) => (
         <Sequence
           key={`${cena.tipo}-${index}`}
@@ -220,6 +230,16 @@ const HookOverlay: React.FC<{ cena: Extract<Cena, { tipo: "Hook" }>; corPrimaria
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <GradienteInferior />
       <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", padding: "0 64px 420px", textAlign: "center" }}>
         <div style={{ opacity, transform: `translateY(${y}px) scale(${scale})`, fontFamily, fontWeight: typography.weightHero, fontSize: typography.sizeHero, lineHeight: typography.lineHeightTight, letterSpacing: typography.trackingTight, textTransform: "uppercase", color: colors.white, textShadow: "0 4px 24px rgba(0,0,0,0.8)" }}>
@@ -250,17 +270,27 @@ const VideoCitacaoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "VideoCitacao"
 
   return (
     <AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.85) 100%)" }} />
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, transparent 45%, rgba(0,0,0,0.88) 100%)" }} />
       <AbsoluteFill style={{ justifyContent: "flex-end", padding: "0 64px 420px" }}>
         <div style={{ opacity, transform: `translateY(${y}px)`, borderLeft: `6px solid ${accentColor}`, paddingLeft: spacing.md }}>
-          <div style={{ fontFamily, fontWeight: typography.weightTitle, fontSize: typography.sizeBody, color: colors.white }}>{cena.nome_mentor}</div>
-          <div style={{ fontFamily, fontSize: typography.sizeCaption, color: accentColor, marginBottom: spacing.md }}>{cena.cargo_mentor}</div>
+          <div style={{ fontFamily, fontWeight: typography.weightTitle, fontSize: typography.sizeBody, color: colors.white, letterSpacing: typography.trackingNormal }}>{cena.nome_mentor}</div>
+          <div style={{ fontFamily, fontWeight: typography.weightCaption, fontSize: typography.sizeCaption, color: accentColor, marginBottom: spacing.md, opacity: 0.9 }}>{cena.cargo_mentor}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: spacing.xs }}>
             {cena.frases.map((frase, i) => {
-              const delay = i * 6;
-              const fe = spring({ frame: Math.max(0, frame - delay), fps, config: { damping: 14, stiffness: 80 } });
+              const fraseDelay = i * 8;
+              const fe = spring({ frame: Math.max(0, frame - fraseDelay), fps, config: { damping: 14, stiffness: 80 } });
               return (
-                <div key={i} style={{ opacity: interpolate(fe, [0, 1], [0, 1]), transform: `translateX(${interpolate(fe, [0, 1], [-40, 0])}px)`, fontFamily, fontWeight: typography.weightBody, fontSize: typography.sizeSubtitle, color: colors.white, lineHeight: typography.lineHeightBody }}>{frase}</div>
+                <div key={i} style={{ opacity: interpolate(fe, [0, 1], [0, 1]), transform: `translateX(${interpolate(fe, [0, 1], [20, 0])}px)`, fontFamily, fontWeight: typography.weightBody, fontSize: typography.sizeSubtitle, color: colors.white, lineHeight: typography.lineHeightBody }}>{frase}</div>
               );
             })}
           </div>
@@ -284,7 +314,17 @@ const FraseImpactoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "FraseImpacto"
 
   return (
     <AbsoluteFill>
-      <GradienteInferior opacity={0.80} />
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.80) 100%)", pointerEvents: "none" }} />
       <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: cena.alinhamento === "esquerda" ? "flex-start" : "center", padding: "0 64px 420px" }}>
         <div style={{ opacity, transform: `translateY(${y}px)`, fontFamily, fontWeight: typography.weightTitle, fontSize: typography.sizeTitle, lineHeight: typography.lineHeightBody, letterSpacing: typography.trackingTight, color: colors.white, textAlign: cena.alinhamento === "esquerda" ? "left" : "center", maxWidth: 900, textShadow: "0 3px 20px rgba(0,0,0,0.85)" }}>
           {tokens.map((token, i) => (
@@ -306,17 +346,27 @@ const ListaPontosOverlay: React.FC<{ cena: Extract<Cena, { tipo: "ListaPontos" }
 
   const tituloEntrada = spring({ frame, fps, config: { damping: 14, stiffness: 90 } });
   const tituloOpacity = interpolate(tituloEntrada, [0, 1], [0, 1]);
+  const tituloY = interpolate(tituloEntrada, [0, 1], [20, 0]);
 
   const ITEM_DELAY = 12;
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? cena.pontos.map((_, i) => (
+        <Sequence key={i} from={Math.round(((cena.sfx!.inicio_segundos ?? 0) * fps) + i * ITEM_DELAY)}>
+          <Audio
+            src={staticFile(cena.sfx!.path)}
+            volume={Math.min(1, (cena.sfx!.volume ?? 5) / 10)}
+          />
+        </Sequence>
+      )) : null}
+
       <AbsoluteFill style={{ background: "linear-gradient(180deg, transparent 15%, rgba(0,0,0,0.88) 100%)", pointerEvents: "none" }} />
       <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "flex-start", padding: "0 64px 420px", flexDirection: "column" }}>
         {cena.titulo && (
           <>
             <div style={{ opacity: tituloOpacity, width: 48, height: 4, backgroundColor: accentColor, borderRadius: 2, marginBottom: spacing.sm }} />
-            <div style={{ opacity: tituloOpacity, fontFamily, fontWeight: typography.weightHero, fontSize: typography.sizeTitle, color: colors.white, letterSpacing: typography.trackingTight, textTransform: "uppercase", marginBottom: spacing.lg, textShadow: "0 3px 20px rgba(0,0,0,0.85)", lineHeight: typography.lineHeightTight }}>{cena.titulo}</div>
+            <div style={{ opacity: tituloOpacity, transform: `translateY(${tituloY}px)`, fontFamily, fontWeight: typography.weightHero, fontSize: typography.sizeTitle, color: colors.white, letterSpacing: typography.trackingTight, textTransform: "uppercase", marginBottom: spacing.lg, textShadow: "0 3px 20px rgba(0,0,0,0.85)", lineHeight: typography.lineHeightTight }}>{cena.titulo}</div>
           </>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: spacing.md, width: "100%" }}>
@@ -354,6 +404,16 @@ const ComparativoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "ComparativoNum
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <GradienteInferior opacity={0.78} />
       <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", padding: "0 64px 420px", flexDirection: "column", gap: spacing.lg }}>
         <div style={{ opacity, transform: `translateY(${y}px)`, fontFamily, fontWeight: typography.weightBody, fontSize: typography.sizeCaption, color: colors.textMuted, textAlign: "center", textTransform: "uppercase", letterSpacing: typography.trackingWide }}>{cena.metrica_nome}</div>
@@ -363,11 +423,14 @@ const ComparativoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "ComparativoNum
             const le = spring({ frame: Math.max(0, frame - delay), fps, config: { damping: 12, stiffness: 80 } });
             return (
               <div key={i} style={{ opacity: interpolate(le, [0, 1], [0, 1]), transform: `translateY(${interpolate(le, [0, 1], [30, 0])}px)`, flex: 1, minWidth: 0, maxWidth: 420, backgroundColor: lado.eh_destaque ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)", border: lado.eh_destaque ? `3px solid ${accentColor}` : "2px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: `${spacing.lg}px ${spacing.md}px`, display: "flex", flexDirection: "column", alignItems: "center", gap: spacing.sm, overflow: "hidden" }}>
-                <div style={{ fontFamily, fontWeight: typography.weightHero, fontSize: String(lado.valor).length > 8 ? 72 : String(lado.valor).length > 5 ? 96 : 120, lineHeight: 1.05, color: lado.eh_destaque ? accentColor : colors.whiteSoft, letterSpacing: typography.trackingTight, textAlign: "center", wordBreak: "break-word", overflowWrap: "break-word", width: "100%" }}>{lado.valor}</div>
+                <div style={{ fontFamily, fontWeight: typography.weightHero, fontSize: (() => { const l = String(lado.valor).length; if (l <= 4) return 120; if (l <= 7) return 96; if (l <= 10) return 72; if (l <= 14) return 56; return 44; })(), lineHeight: 1.05, color: lado.eh_destaque ? accentColor : colors.whiteSoft, letterSpacing: typography.trackingTight, textAlign: "center", wordBreak: "break-word", overflowWrap: "break-word", width: "100%" }}>{lado.valor}</div>
                 <div style={{ fontFamily, fontWeight: typography.weightBody, fontSize: typography.sizeCaption, color: colors.textMuted, textTransform: "uppercase", letterSpacing: typography.trackingWide, textAlign: "center", wordBreak: "break-word", width: "100%" }}>{lado.rotulo}</div>
               </div>
             );
           })}
+        </div>
+        <div style={{ opacity: opacity * 0.6, fontFamily, fontWeight: typography.weightCaption, fontSize: typography.sizeCaption, color: colors.textMuted, textAlign: "center" }}>
+          em {cena.metrica_unidade}
         </div>
       </AbsoluteFill>
     </AbsoluteFill>
@@ -389,6 +452,16 @@ const MiniCasoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "MiniCaso" }>; cor
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.75) 0%, transparent 40%)" }} />
       <AbsoluteFill style={{ backgroundColor: "rgba(0,0,0,0.35)" }} />
       <AbsoluteFill style={{ justifyContent: "flex-start", alignItems: "flex-start", padding: `${spacing.xl}px ${spacing.lg}px 0` }}>
@@ -419,8 +492,18 @@ const TransicaoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "TransicaoTexto" 
 
   return (
     <AbsoluteFill>
-      <GradienteInferior opacity={0.72} />
-      <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", padding: "0 64px 420px" }}>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.72) 100%)", pointerEvents: "none" }} />
+      <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", padding: `0 ${spacing.lg}px ${spacing.xxl}px` }}>
         <div style={{ opacity, transform: `scale(${scale})`, fontFamily, fontWeight: typography.weightTitle, fontSize: typography.sizeSubtitle, color: colors.whiteSoft, textAlign: "center", letterSpacing: typography.trackingNormal, lineHeight: typography.lineHeightBody, textShadow: "0 2px 16px rgba(0,0,0,0.9)" }}>{cena.texto}</div>
       </AbsoluteFill>
     </AbsoluteFill>
@@ -440,6 +523,16 @@ const ConviteEventoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "ConviteEvent
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{ backgroundColor: "rgba(8, 10, 18, 0.82)" }} />
       <AbsoluteFill style={{ justifyContent: "flex-start", alignItems: "flex-start", padding: "200px 64px 420px", flexDirection: "column" }}>
         {cena.logo_url ? (
@@ -497,29 +590,31 @@ const GraficoLinhaOverlay: React.FC<{ cena: Extract<Cena, { tipo: "GraficoLinha"
   const maxVal = Math.max(...valores);
   const range = maxVal - minVal || 1;
 
-  const W = 952;
-  const H = 440;
-  const PAD_LEFT = 72;
-  const PAD_RIGHT = 32;
-  const PAD_TOP = 32;
-  const PAD_BOTTOM = 56;
+  const W = 960;
+  const H = 480;
+  const PAD_LEFT = 80;
+  const PAD_RIGHT = 40;
+  const PAD_TOP = 40;
+  const PAD_BOTTOM = 60;
   const innerW = W - PAD_LEFT - PAD_RIGHT;
   const innerH = H - PAD_TOP - PAD_BOTTOM;
 
   const coords = pontos.map((p, i) => ({
-    x: PAD_LEFT + (i / Math.max(pontos.length - 1, 1)) * innerW,
+    x: PAD_LEFT + (i / (pontos.length - 1)) * innerW,
     y: PAD_TOP + innerH - ((p.valor - minVal) / range) * innerH,
     ...p,
   }));
 
   const visibleCount = Math.max(2, Math.round(drawProgress * (pontos.length - 1)) + 1);
-  const visibleCoords = coords.slice(0, Math.min(visibleCount, coords.length));
-  let pathCoords = visibleCoords;
+  const visibleCoords = coords.slice(0, visibleCount);
+  const lastFull = visibleCoords[visibleCoords.length - 1];
   const nextFull = coords[visibleCount] ?? null;
+  let pathCoords = visibleCoords;
   if (nextFull && visibleCount < pontos.length) {
-    const seg = (drawProgress * (pontos.length - 1)) % 1;
-    const last = visibleCoords[visibleCoords.length - 1];
-    pathCoords = [...visibleCoords, { ...nextFull, x: last.x + (nextFull.x - last.x) * seg, y: last.y + (nextFull.y - last.y) * seg }];
+    const segmentProgress = (drawProgress * (pontos.length - 1)) % 1;
+    const interpX = lastFull.x + (nextFull.x - lastFull.x) * segmentProgress;
+    const interpY = lastFull.y + (nextFull.y - lastFull.y) * segmentProgress;
+    pathCoords = [...visibleCoords, { ...nextFull, x: interpX, y: interpY }];
   }
 
   const linePath = pathCoords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`).join(" ");
@@ -532,19 +627,29 @@ const GraficoLinhaOverlay: React.FC<{ cena: Extract<Cena, { tipo: "GraficoLinha"
 
   const formatVal = (v: number) => {
     const u = cena.unidade ?? "";
-    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M${u}`;
-    if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(0)}k${u}`;
-    return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}${u}`;
+    if (Math.abs(v) >= 1_000_000) return `${u}${(v / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(v) >= 1_000) return `${u}${(v / 1_000).toFixed(0)}k`;
+    return `${u}${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}`;
   };
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{ backgroundColor: "rgba(5, 8, 20, 0.90)" }} />
-      <AbsoluteFill style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "0 64px", gap: spacing.md }}>
+      <AbsoluteFill style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: `${spacing.xl}px ${spacing.lg}px`, gap: spacing.md }}>
         <div style={{ opacity, transform: `translateY(${translateY}px)`, fontFamily, fontWeight: typography.weightTitle, fontSize: typography.sizeSubtitle, color: colors.white, letterSpacing: typography.trackingTight, textAlign: "center", lineHeight: typography.lineHeightTight }}>{cena.titulo}</div>
-        {cena.subtitulo ? <div style={{ opacity: opacity * 0.7, fontFamily, fontSize: typography.sizeCaption, color: colors.textMuted, textAlign: "center" }}>{cena.subtitulo}</div> : null}
+        {cena.subtitulo ? <div style={{ opacity: opacity * 0.7, fontFamily, fontWeight: typography.weightCaption, fontSize: typography.sizeCaption, color: colors.textMuted, textAlign: "center" }}>{cena.subtitulo}</div> : null}
         <div style={{ opacity, width: W, flexShrink: 0 }}>
-          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible" }}>
             <defs>
               <linearGradient id="lgAreaGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={accentColor} stopOpacity="0.22" />
@@ -554,22 +659,22 @@ const GraficoLinhaOverlay: React.FC<{ cena: Extract<Cena, { tipo: "GraficoLinha"
             {gridLines.map((g, i) => (
               <g key={i}>
                 <line x1={PAD_LEFT} y1={g.y} x2={PAD_LEFT + innerW} y2={g.y} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
-                <text x={PAD_LEFT - 8} y={g.y + 6} textAnchor="end" fill="rgba(255,255,255,0.3)" fontSize={20} fontFamily={fontFamily}>{formatVal(g.valor)}</text>
+                <text x={PAD_LEFT - 10} y={g.y + 6} textAnchor="end" fill="rgba(255,255,255,0.35)" fontSize={24} fontFamily={fontFamily}>{formatVal(g.valor)}</text>
               </g>
             ))}
-            <path d={areaPath} fill="url(#lgAreaGrad)" />
+            {cena.mostrar_area !== false ? <path d={areaPath} fill="url(#lgAreaGrad)" /> : null}
             <path d={linePath} fill="none" stroke={accentColor} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
             {coords.map((c, i) => {
               const visible = i < pathCoords.length;
               const isLast = visible && i === pathCoords.length - 1;
               return (
                 <g key={i} opacity={visible ? 1 : 0}>
-                  <text x={c.x} y={PAD_TOP + innerH + 38} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize={18} fontFamily={fontFamily}>{c.rotulo}</text>
+                  <text x={c.x} y={PAD_TOP + innerH + 40} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize={22} fontFamily={fontFamily}>{c.rotulo}</text>
                   {isLast ? (
                     <>
                       <circle cx={c.x} cy={c.y} r={10} fill={accentColor} opacity={0.3} />
                       <circle cx={c.x} cy={c.y} r={5} fill={accentColor} />
-                      <text x={c.x} y={c.y - 16} textAnchor="middle" fill={accentSecundaria} fontSize={26} fontWeight={700} fontFamily={fontFamily}>{formatVal(c.valor)}</text>
+                      <text x={c.x} y={c.y - 18} textAnchor="middle" fill={accentSecundaria} fontSize={28} fontWeight={700} fontFamily={fontFamily}>{formatVal(c.valor)}</text>
                     </>
                   ) : visible ? <circle cx={c.x} cy={c.y} r={4} fill={accentColor} opacity={0.6} /> : null}
                 </g>
@@ -623,6 +728,16 @@ const GraficoBarraOverlay: React.FC<{ cena: Extract<Cena, { tipo: "GraficoBarra"
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{ backgroundColor: "rgba(5, 8, 20, 0.90)" }} />
       <AbsoluteFill style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: `0 64px`, gap: spacing.md }}>
         <div style={{ opacity, transform: `translateY(${translateY}px)`, fontFamily, fontWeight: typography.weightTitle, fontSize: typography.sizeSubtitle, color: colors.white, letterSpacing: typography.trackingTight, textAlign: "center", lineHeight: typography.lineHeightTight }}>
@@ -632,7 +747,7 @@ const GraficoBarraOverlay: React.FC<{ cena: Extract<Cena, { tipo: "GraficoBarra"
           <div style={{ opacity: opacity * 0.7, fontFamily, fontWeight: typography.weightCaption, fontSize: typography.sizeCaption, color: colors.textMuted, textAlign: "center" }}>{cena.subtitulo}</div>
         ) : null}
         <div style={{ opacity, width: W, flexShrink: 0 }}>
-          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible" }}>
             <line x1={0} y1={PAD_TOP + innerH} x2={W} y2={PAD_TOP + innerH} stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
             {barras.map((barra, i) => {
               const progress = barAnimations[i];
@@ -668,21 +783,30 @@ const GraficoBarraOverlay: React.FC<{ cena: Extract<Cena, { tipo: "GraficoBarra"
 const CtaOverlay: React.FC<{ cena: Extract<Cena, { tipo: "CTA" }>; corPrimaria?: string; corSecundaria?: string; fonteFamilia?: string }> = ({ cena, corPrimaria, corSecundaria, fonteFamilia }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const resolver = makeCorDestaque(corPrimaria, corSecundaria);
   const fontFamily = resolveFontFamily(fonteFamilia);
   const s = spring({ frame, fps, config: { damping: 14, stiffness: 90 } });
   const opacity = interpolate(s, [0, 1], [0, 1]);
   const y = interpolate(s, [0, 1], [60, 0]);
   const setaY = 16 * Math.sin((frame / fps) * 2 * Math.PI * 1.4);
   const setaCor = (cena.palavras_destacadas && cena.palavras_destacadas.length > 0)
-    ? resolver(cena.palavras_destacadas[0].cor)
+    ? cena.palavras_destacadas[0].cor
     : (corPrimaria ?? colors.red);
 
   const tokens = cena.texto_principal.split(/(\s+)/);
-  const ctaCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? [], resolver);
+  const ctaCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? []);
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={staticFile(cena.sfx.path)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{ backgroundColor: "rgba(8, 10, 18, 0.75)" }} />
       <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", padding: "0 64px 96px", flexDirection: "column" }}>
         <div style={{ opacity, transform: `translateY(${y}px)`, fontFamily, fontWeight: typography.weightHero, fontSize: 108, lineHeight: typography.lineHeightTight, letterSpacing: typography.trackingTight, textTransform: "uppercase", color: colors.white, textAlign: "center" }}>

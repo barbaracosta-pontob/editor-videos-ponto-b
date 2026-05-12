@@ -4,9 +4,12 @@ import {
   useVideoConfig,
   spring,
   interpolate,
+  Audio,
+  Sequence,
+  staticFile,
 } from "remotion";
 import type { FraseImpacto } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap } from "../theme";
+import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap , resolveAudioSrc } from "../theme";
 
 export const FraseImpactoScene: React.FC<{ cena: FraseImpacto; corPrimaria?: string; corSecundaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -28,6 +31,16 @@ export const FraseImpactoScene: React.FC<{ cena: FraseImpacto; corPrimaria?: str
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={resolveAudioSrc(cena.sfx.path, staticFile)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{
         background: "linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.80) 100%)",
         pointerEvents: "none",

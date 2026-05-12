@@ -1,4 +1,4 @@
-import { AbsoluteFill, Sequence, OffthreadVideo, delayRender, continueRender } from "remotion";
+import { AbsoluteFill, Sequence, OffthreadVideo, Audio, staticFile, delayRender, continueRender } from "remotion";
 import { useMemo, useEffect, useRef } from "react";
 
 import { ReelPropsSchema, type ReelProps, type Cena } from "@pontob/schema";
@@ -15,7 +15,7 @@ import { ConviteEventoScene } from "../scenes/ConviteEventoScene";
 import { GraficoLinhaScene } from "../scenes/GraficoLinhaScene";
 import { GraficoBarraScene } from "../scenes/GraficoBarraScene";
 import { PlaceholderScene } from "../scenes/PlaceholderScene";
-import { colors } from "../theme";
+import { colors, resolveAudioSrc } from "../theme";
 
 export { ReelPropsSchema, type ReelProps };
 
@@ -85,6 +85,16 @@ export const Reel: React.FC<ReelProps> = (props) => {
             "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 45%, rgba(0,0,0,0.6) 100%)",
           pointerEvents: "none",
         }} />
+      ) : null}
+
+      {/* Música de fundo — toca durante todo o reel */}
+      {/* Durante render: path vem como URL HTTP absoluta (convertido em render/route.ts). */}
+      {/* No Remotion Studio / preview local: path é relativo, usa staticFile como fallback. */}
+      {props.musica_fundo ? (
+        <Audio
+          src={resolveAudioSrc(props.musica_fundo.path, staticFile)}
+          volume={Math.min(1, (props.musica_fundo.volume ?? 3) / 10)}
+        />
       ) : null}
 
       {sequencias.map(({ cena, inicioFrames, duracaoFrames, index }) => (

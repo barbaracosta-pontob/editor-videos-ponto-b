@@ -76,6 +76,21 @@ export function EditorView({ job, onNew }: EditorViewProps) {
   const [refineError, setRefineError] = useState<string | null>(null);
   const [refineToast, setRefineToast] = useState<string | null>(null);
 
+  // Música de fundo
+  type MusicaItem = { filename: string; label: string; path: string };
+  const [musicas, setMusicas] = useState<MusicaItem[]>([]);
+  // volume na UI: 0-100 (percentual). volume no schema/Remotion: 0-10.
+  // Conversão: UI → schema = / 10, schema → UI = * 10
+  const [musicaFundo, setMusicaFundo] = useState<{ path: string; volume: number } | null>(
+    job.scenes?.musica_fundo
+      ? { path: job.scenes.musica_fundo.path, volume: (job.scenes.musica_fundo.volume ?? 3) * 10 }
+      : null
+  );
+
+  useEffect(() => {
+    fetch("/api/musicas").then((r) => r.json()).then(setMusicas).catch(() => {});
+  }, []);
+
   const totalSec = scenes.reduce((acc, c) => acc + c.duracao_segundos, 0);
 
   // Frame inicial do player quando a cena selecionada muda
@@ -106,8 +121,11 @@ export function EditorView({ job, onNew }: EditorViewProps) {
       cor_secundaria: job.scenes?.cor_secundaria,
       fonte_url: job.scenes?.fonte_url,
       fonte_familia: job.scenes?.fonte_familia,
+      musica_fundo: musicaFundo
+        ? { path: musicaFundo.path, volume: parseFloat((musicaFundo.volume / 10).toFixed(2)) }
+        : undefined,
     };
-  }, [scenes, totalSec, job.id]);
+  }, [scenes, totalSec, job.id, musicaFundo]);
 
   async function handleRender() {
     setRendering(true);
@@ -124,6 +142,9 @@ export function EditorView({ job, onNew }: EditorViewProps) {
           ...job.scenes,
           cenas: scenes,
           duracao_total_estimada: parseFloat(duracaoAtual.toFixed(2)),
+          musica_fundo: musicaFundo
+            ? { path: musicaFundo.path, volume: parseFloat((musicaFundo.volume / 10).toFixed(2)) }
+            : undefined,
         }),
       });
       if (!saveRes.ok) {
@@ -233,6 +254,56 @@ export function EditorView({ job, onNew }: EditorViewProps) {
       {renderError && <div className={styles.errorBanner}>⚠ {renderError}</div>}
       {refineError && <div className={styles.errorBanner}>⚠ {refineError}</div>}
       {refineToast && <div className={styles.refineToast}>{refineToast}</div>}
+
+      {/* Painel de música de fundo */}
+      {musicas.length > 0 && (
+        <div className={styles.musicaBar}>
+          <span className={styles.musicaLabel}>♪ Música de fundo</span>
+          <select
+            className={styles.musicaSelect}
+            value={musicaFundo?.path ?? ""}
+            onChange={(e) => {
+              const path = e.target.value;
+              if (!path) { setMusicaFundo(null); return; }
+              setMusicaFundo({ path, volume: musicaFundo?.volume ?? 20 });
+            }}
+          >
+            <option value="">Nenhuma</option>
+            {musicas.map((m) => (
+              <option key={m.path} value={m.path}>{m.label}</option>
+            ))}
+          </select>
+          {musicaFundo && (
+            <div className={styles.musicaVolume}>
+              <span className={styles.musicaVolLabel}>Volume</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={musicaFundo.volume}
+                onChange={(e) => setMusicaFundo({ ...musicaFundo, volume: Number(e.target.value) })}
+                className={styles.musicaSlider}
+              />
+              <div className={styles.musicaVolNum}>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={musicaFundo.volume}
+                  onChange={(e) => {
+                    const v = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                    setMusicaFundo({ ...musicaFundo, volume: v });
+                  }}
+                  className={styles.musicaVolInput}
+                />
+                <span className={styles.musicaVolPct}>%</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Body: 3 colunas */}
       <div className={styles.body}>
@@ -546,17 +617,20 @@ function SceneDetail({
     // Scaffolds mínimos por tipo de destino
     switch (novoTipo) {
       case "Hook":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/whoosh.mp3", volume: 5 };
         base["titulo"] = base["titulo"] ?? "TÍTULO DO HOOK";
         base["palavras_destacadas"] = [];
         base["animacao_entrada"] = "spring";
         break;
       case "FraseImpacto":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/transition.mp3", volume: 5 };
         base["texto"] = String(c["titulo"] ?? c["texto"] ?? "Frase de impacto aqui");
         base["palavras_destacadas"] = [];
         base["alinhamento"] = "centro";
         base["fundo"] = "navy";
         break;
       case "ComparativoNumerico":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/ding.mp3", volume: 5 };
         base["metrica_nome"] = String(c["titulo"] ?? "Métrica");
         base["metrica_unidade"] = "";
         base["lados"] = [
@@ -566,6 +640,7 @@ function SceneDetail({
         base["visualizacao"] = "numeros_grandes";
         break;
       case "GraficoBarra":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/slide.mp3", volume: 5 };
         base["titulo"] = base["titulo"] ?? String(c["metrica_nome"] ?? "Comparativo");
         base["barras"] = [
           { rotulo: "A", valor: 1, valor_display: "1", eh_destaque: false },
@@ -574,6 +649,7 @@ function SceneDetail({
         ];
         break;
       case "GraficoLinha":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/slide.mp3", volume: 5 };
         base["titulo"] = base["titulo"] ?? "Evolução";
         base["pontos"] = [
           { rotulo: "Jan", valor: 1 },
@@ -583,33 +659,39 @@ function SceneDetail({
         base["unidade"] = "";
         break;
       case "VideoCitacao":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/slide.mp3", volume: 5 };
         base["frases"] = Array.isArray(c["frases"]) ? c["frases"] : ["Frase do mentor aqui"];
         base["nome_mentor"] = c["nome_mentor"] ?? "";
         base["cargo_mentor"] = c["cargo_mentor"] ?? "";
         base["estilo_lower_third"] = "barra_inferior";
         break;
       case "ListaPontos":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/pop.mp3", volume: 5 };
         base["pontos"] = Array.isArray(c["pontos"]) ? c["pontos"] : ["Ponto 1", "Ponto 2", "Ponto 3"];
         base["numerado"] = false;
         base["fundo"] = "navy";
         break;
             case "MiniCaso":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/ding.mp3", volume: 5 };
         base["resultado_texto"] = String(c["titulo"] ?? "Resultado aqui");
         base["contexto_texto"] = "";
         base["palavras_destacadas"] = [];
         break;
       case "TransicaoTexto":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/transition.mp3", volume: 5 };
         base["texto"] = String(c["titulo"] ?? c["texto"] ?? "Mas existe outro caminho");
         base["fundo"] = "navy";
         base["duracao_segundos"] = Math.min(Number(dur), 4);
         break;
       case "ConviteEvento":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/slide.mp3", volume: 5 };
         base["nome_evento"] = String(c["titulo"] ?? "Nome do Evento");
         base["descricao"] = "";
         base["bullets"] = ["Benefício 1", "Benefício 2"];
         base["fundo"] = "navy";
         break;
       case "CTA":
+        if (!base["sfx"]) base["sfx"] = { path: "sfx/transition.mp3", volume: 5 };
         base["texto_principal"] = String(c["texto_principal"] ?? c["titulo"] ?? "Comente aqui embaixo");
         base["texto_secundario"] = "";
         base["mostrar_seta"] = true;
@@ -900,6 +982,29 @@ function SceneDetail({
 
       {/* pontos: só para ListaPontos */}
       {cena.tipo === "ListaPontos" ? listField("pontos", "Pontos (um por linha)") : null}
+      {cena.tipo === "ListaPontos" ? (
+        <div className={styles.field}>
+          <label className={styles.fieldLabel}>Estilo da lista</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            {([{ val: false, label: "● Bullets" }, { val: true, label: "1. Numerado" }] as const).map(({ val, label }) => {
+              const ativo = (c["numerado"] ?? false) === val;
+              return (
+                <button
+                  key={String(val)}
+                  onClick={() => onChange({ ...cena, numerado: val } as Cena)}
+                  style={{
+                    flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer",
+                    border: ativo ? "2px solid var(--accent)" : "1px solid var(--b-mid)",
+                    background: ativo ? "rgba(255,255,255,0.06)" : "transparent",
+                    color: ativo ? "var(--text-main)" : "var(--text-muted)",
+                    fontSize: 12, fontWeight: ativo ? 700 : 400,
+                  }}
+                >{label}</button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {listField("bullets", "Bullets (um por linha)")}
       {listField("frases", "Frases (uma por linha)")}
 
@@ -972,6 +1077,101 @@ function SceneDetail({
           </div>
         </div>
       ) : null}
+
+
+      {/* SFX por cena */}
+      {(() => {
+        const SFX_OPCOES = [
+          { path: "sfx/whoosh.mp3",     label: "whoosh",     desc: "entrada rápida" },
+          { path: "sfx/slide.mp3",      label: "slide",      desc: "movimento suave" },
+          { path: "sfx/pop.mp3",        label: "pop",        desc: "item aparecendo" },
+          { path: "sfx/ding.mp3",       label: "ding",       desc: "destaque / resultado" },
+          { path: "sfx/transition.mp3", label: "transition", desc: "passagem de cena" },
+        ];
+        const sfx = c["sfx"] as { path?: string; volume?: number; inicio_segundos?: number; fim_segundos?: number } | undefined;
+        const hasSfx = !!sfx?.path;
+
+        function previewSfx(path: string, volume: number) {
+          const audio = new window.Audio(`/${path}`);
+          audio.volume = Math.min(1, volume / 10);
+          audio.play().catch(() => {});
+        }
+
+        return (
+          <div className={styles.field}>
+            <label className={styles.fieldLabel} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>Efeito sonoro</span>
+              {hasSfx ? (
+                <button
+                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 11, padding: 0 }}
+                  onClick={() => onChange({ ...cena, sfx: undefined } as Cena)}
+                >✕ remover</button>
+              ) : null}
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: hasSfx ? 8 : 0 }}>
+              {SFX_OPCOES.map((op) => {
+                const ativo = sfx?.path === op.path;
+                return (
+                  <div key={op.path} style={{ display: "flex", gap: 3, alignItems: "stretch" }}>
+                    {/* Botão de seleção */}
+                    <button
+                      onClick={() => onChange({ ...cena, sfx: ativo ? undefined : { path: op.path, volume: sfx?.volume ?? 5, inicio_segundos: sfx?.inicio_segundos, fim_segundos: sfx?.fim_segundos } } as Cena)}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "flex-start",
+                        padding: "6px 10px", borderRadius: "8px 0 0 8px", cursor: "pointer",
+                        border: ativo ? "2px solid var(--accent)" : "1px solid var(--b-mid)",
+                        borderRight: "none",
+                        background: ativo ? "rgba(255,255,255,0.06)" : "transparent",
+                        color: ativo ? "var(--text-main)" : "var(--text-muted)",
+                      }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: ativo ? 700 : 400 }}>{op.label}</span>
+                      <span style={{ fontSize: 10, opacity: 0.6 }}>{op.desc}</span>
+                    </button>
+                    {/* Botão de prévia */}
+                    <button
+                      title="Ouvir"
+                      onClick={(e) => { e.stopPropagation(); previewSfx(op.path, sfx?.volume ?? 5); }}
+                      style={{
+                        padding: "0 8px", borderRadius: "0 8px 8px 0", cursor: "pointer",
+                        border: ativo ? "2px solid var(--accent)" : "1px solid var(--b-mid)",
+                        borderLeft: "1px solid var(--b-mid)",
+                        background: "transparent",
+                        color: "var(--text-muted)",
+                        fontSize: 11,
+                        lineHeight: 1,
+                      }}
+                    >▶</button>
+                  </div>
+                );
+              })}
+            </div>
+            {hasSfx ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Volume</div>
+                  <input
+                    className={styles.input}
+                    type="number" min={0} max={10} step={1}
+                    value={sfx?.volume ?? 5}
+                    onChange={(e) => onChange({ ...cena, sfx: { ...sfx, volume: parseInt(e.target.value) ?? 5 } } as Cena)}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Início (s)</div>
+                  <input
+                    className={styles.input}
+                    type="number" min={0} step={1}
+                    value={sfx?.inicio_segundos ?? 0}
+                    onChange={(e) => onChange({ ...cena, sfx: { ...sfx, inicio_segundos: parseInt(e.target.value) || 0 } } as Cena)}
+                  />
+                </div>
+
+              </div>
+            ) : null}
+          </div>
+        );
+      })()}
 
       {/* Campos de cor por cena — GraficoLinha e GraficoBarra */}
       {(cena.tipo === "GraficoLinha" || cena.tipo === "GraficoBarra") ? (

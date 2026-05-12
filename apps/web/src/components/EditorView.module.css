@@ -742,3 +742,133 @@
   height: 44px;
   object-fit: contain;
 }
+
+/* ── Painel de música de fundo ─────────────────────────────────── */
+
+.musicaBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.musicaLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.musicaOpcoes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.musicaBtn {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.musicaBtn:hover {
+  border-color: var(--brand);
+  color: var(--ink-1);
+}
+
+.musicaBtnAtivo {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.musicaVolume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.musicaVolLabel {
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+.musicaSlider {
+  width: 96px;
+  accent-color: var(--brand);
+  cursor: pointer;
+  height: 3px;
+}
+
+.musicaVolNum {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 5px 0 2px;
+  height: 24px;
+}
+
+.musicaVolInput {
+  width: 28px;
+  border: none;
+  background: transparent;
+  color: var(--ink-1);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  padding: 0;
+  -moz-appearance: textfield;
+  line-height: 1;
+}
+
+.musicaVolInput::-webkit-inner-spin-button,
+.musicaVolInput::-webkit-outer-spin-button {
+  display: none;
+}
+
+.musicaVolInput:focus {
+  outline: none;
+}
+
+.musicaVolPct {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  line-height: 1;
+  user-select: none;
+}
+
+.musicaSelect {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-1);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 160px;
+  max-width: 280px;
+}
+
+.musicaSelect:focus {
+  outline: none;
+  border-color: var(--brand);
+}

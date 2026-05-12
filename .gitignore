@@ -40,6 +40,10 @@ guia-tecnico-projeto.docx
 *.mkv
 *.wav
 *.mp3
+!apps/remotion/public/sfx/*.mp3
+!apps/remotion/public/musica/*.mp3
+!apps/web/public/sfx/*.mp3
+!apps/web/public/musica/*.mp3
 !docs/**/*.mp4
 
 # Whisper models (grandes)

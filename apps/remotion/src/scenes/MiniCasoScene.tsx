@@ -4,9 +4,12 @@ import {
   useVideoConfig,
   spring,
   interpolate,
+  Audio,
+  Sequence,
+  staticFile,
 } from "remotion";
 import type { MiniCaso } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap } from "../theme";
+import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap , resolveAudioSrc } from "../theme";
 
 export const MiniCasoScene: React.FC<{
   cena: MiniCaso;
@@ -29,6 +32,16 @@ export const MiniCasoScene: React.FC<{
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? (
+        <Sequence from={Math.round((cena.sfx.inicio_segundos ?? 0) * fps)}>
+          <Audio
+            src={resolveAudioSrc(cena.sfx.path, staticFile)}
+            volume={Math.min(1, (cena.sfx.volume ?? 5) / 10)}
+            endAt={cena.sfx.fim_segundos != null ? Math.round(cena.sfx.fim_segundos * fps) : undefined}
+          />
+        </Sequence>
+      ) : null}
+
       <AbsoluteFill style={{ backgroundColor: "rgba(0,0,0,0.35)" }} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.75) 0%, transparent 40%)" }} />
       <AbsoluteFill

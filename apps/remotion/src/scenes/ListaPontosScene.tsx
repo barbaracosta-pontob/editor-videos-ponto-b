@@ -4,9 +4,12 @@ import {
   useVideoConfig,
   spring,
   interpolate,
+  Audio,
+  Sequence,
+  staticFile,
 } from "remotion";
 import type { ListaPontos } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily } from "../theme";
+import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
 
 export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -29,6 +32,15 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
 
   return (
     <AbsoluteFill>
+      {cena.sfx ? cena.pontos.map((_, i) => (
+        <Sequence key={i} from={Math.round((cena.sfx!.inicio_segundos ?? 0) * fps + i * ITEM_DELAY)}>
+          <Audio
+            src={resolveAudioSrc(cena.sfx!.path, staticFile)}
+            volume={Math.min(1, (cena.sfx!.volume ?? 5) / 10)}
+          />
+        </Sequence>
+      )) : null}
+
       {/* Gradiente mais profundo para dar mais presença à lista */}
       <AbsoluteFill style={{
         background: "linear-gradient(180deg, transparent 15%, rgba(0,0,0,0.88) 100%)",

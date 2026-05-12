@@ -14,9 +14,13 @@
     "build:remotion": "npm run build --workspace=@pontob/remotion",
     "render": "npm run render --workspace=@pontob/remotion",
     "transcribe": "python services/transcription/run.py",
-    "analyze": "npm run analyze --workspace=@pontob/analysis"
+    "analyze": "npm run analyze --workspace=@pontob/analysis",
+    "test:parity": "vitest run tests/parity"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.1"
   }
 }

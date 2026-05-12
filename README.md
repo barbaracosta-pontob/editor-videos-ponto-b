@@ -174,19 +174,55 @@ Acesse **http://localhost:3001**
 ```
 editor-reels-ponto-b/
 ├── apps/
-│   ├── web/             # Interface Next.js — upload, revisão, renderização
-│   └── remotion/        # Componentes React → vídeo (1 componente por tipo de cena)
+│   ├── web/                    # Interface Next.js — upload, revisão, renderização
+│   │   └── public/
+│   │       ├── sfx/            # Efeitos sonoros disponíveis no editor
+│   │       └── musica/         # Músicas de fundo disponíveis no editor
+│   └── remotion/               # Componentes React → vídeo (1 componente por tipo de cena)
+│       └── public/
+│           ├── sfx/            # Mesmos arquivos de sfx/ (necessário para o render)
+│           └── musica/         # Mesmos arquivos de musica/ (necessário para o render)
 ├── services/
-│   ├── transcription/   # Python + faster-whisper
-│   └── analysis/        # Node + Anthropic SDK (Claude analisa e gera scenes.json)
+│   ├── transcription/          # Python + faster-whisper
+│   └── analysis/               # Node + Anthropic SDK (Claude analisa e gera scenes.json)
 ├── packages/
-│   └── schema/          # Schema Zod compartilhado (fonte de verdade dos tipos de cena)
-├── especialistas/        # JSONs de cadastro de cada mentor
-├── jobs/                 # Arquivos de cada execução — criado localmente, não versionado
-├── docs/                 # Documentação detalhada
-├── .env.example          # Template de variáveis de ambiente
-└── .env                  # Suas variáveis locais — não versionar
+│   └── schema/                 # Schema Zod compartilhado (fonte de verdade dos tipos de cena)
+├── especialistas/              # JSONs de cadastro de cada mentor
+├── jobs/                       # Arquivos de cada execução — criado localmente, não versionado
+├── docs/                       # Documentação detalhada
+├── .env.example                # Template de variáveis de ambiente
+└── .env                        # Suas variáveis locais — não versionar
 ```
+
+---
+
+## Assets de áudio
+
+### Efeitos sonoros (SFX)
+
+Os SFX aparecem no editor por cena — o usuário escolhe qual efeito toca na entrada de cada cena.
+
+Para adicionar novos efeitos, copie o arquivo `.mp3` para **ambas** as pastas abaixo e reinicie a aplicação:
+
+```
+apps/web/public/sfx/nome-do-efeito.mp3
+apps/remotion/public/sfx/nome-do-efeito.mp3
+```
+
+O arquivo precisa estar nas duas pastas porque o preview usa o servidor Next.js (`apps/web`) e o render usa o servidor do Remotion (`apps/remotion`). O nome do arquivo vira automaticamente o label exibido no editor (hífens e underscores viram espaços, palavras capitalizadas).
+
+### Música de fundo
+
+A música de fundo toca durante todo o reel, com volume controlável no editor.
+
+Para adicionar novas músicas, copie o arquivo `.mp3` para **ambas** as pastas e reinicie:
+
+```
+apps/web/public/musica/nome-da-musica.mp3
+apps/remotion/public/musica/nome-da-musica.mp3
+```
+
+Formatos suportados: `.mp3`, `.wav`, `.ogg`, `.m4a`.
 
 ---
 

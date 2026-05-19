@@ -33,7 +33,7 @@ export const HookScene: React.FC<{
   const titleScale = interpolate(titleSpring, [0, 1], [0.92, 1]);
 
   const tokens = cena.titulo.split(/(\s+)/);
-  const corMap = buildTokenCorMap(tokens, cena.palavras_destacadas);
+  const corMap = buildTokenCorMap(tokens, cena.palavras_destacadas, corPrimaria, corSecundaria);
 
   return (
     <AbsoluteFill>

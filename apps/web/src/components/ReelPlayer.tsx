@@ -2,10 +2,8 @@
 
 /**
  * Preview do reel usando @remotion/player.
- * Carregado com dynamic + ssr:false pois o Remotion usa APIs de browser.
- *
- * Recebe as props do reel e um `initialFrame` para sincronizar com a cena
- * selecionada no editor.
+ * durationInFrames = janela de trim (duracao_total_estimada), nao soma dos overlays.
+ * Mudar duracao de uma cena nunca altera o tempo total do video.
  */
 
 import { Player, PlayerRef } from "@remotion/player";
@@ -19,17 +17,19 @@ const HEIGHT = 1920;
 
 interface ReelPlayerProps {
   props: ReelProps;
-  initialFrame?: number; // frame para pular quando a cena muda
+  initialFrame?: number;
 }
 
 export function ReelPlayer({ props, initialFrame = 0 }: ReelPlayerProps) {
   const playerRef = useRef<PlayerRef>(null);
+
+  // Duracao total = janela de trim definida pelo agente (video_end - video_start).
+  // NUNCA e a soma das duracoes dos overlays.
   const totalFrames = Math.max(
     1,
-    Math.round(props.cenas.reduce((acc, c) => acc + c.duracao_segundos, 0) * FPS)
+    Math.round(props.duracao_total_estimada * FPS)
   );
 
-  // Quando initialFrame muda (usuário clica numa cena), pula o playhead
   useEffect(() => {
     if (playerRef.current) {
       playerRef.current.seekTo(initialFrame);

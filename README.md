@@ -6,6 +6,19 @@ Pipeline interno da Ponto B para gerar reels (1080×1920, 60–100s) a partir de
 
 ---
 
+## Início rápido (Windows)
+
+Após concluir o setup completo abaixo, use o atalho incluído no projeto para iniciar o editor com um duplo clique:
+
+1. Na raiz do projeto, clique duas vezes em **`Iniciar Editor.bat`**
+2. Uma janela do servidor abrirá em segundo plano
+3. O navegador abrirá automaticamente em `http://localhost:3000` assim que o servidor estiver pronto
+4. Para encerrar, feche a janela **"PontoB Server"**
+
+> **Dica:** Para colocar o atalho no Desktop, clique com o botão direito no `Iniciar Editor.bat` → *Enviar para → Área de trabalho (criar atalho)*.
+
+---
+
 ## Como funciona
 
 ```

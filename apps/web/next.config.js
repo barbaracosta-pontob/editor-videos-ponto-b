@@ -4,6 +4,11 @@ process.env.NEXT_IGNORE_INCORRECT_LOCKFILE = "1";
 
 const path = require("path");
 
+// Carrega o .env da raiz do monorepo (dois níveis acima de apps/web)
+// O Next.js por padrão só lê .env dentro do seu próprio diretório;
+// em monorepos o .env fica na raiz, então precisamos carregá-lo explicitamente.
+require("dotenv").config({ path: path.resolve(__dirname, "../../.env"), override: false });
+
 const nextConfig = {
   transpilePackages: ["@pontob/schema", "@remotion/player", "remotion"],
 

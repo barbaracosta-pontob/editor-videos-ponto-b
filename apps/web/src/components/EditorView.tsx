@@ -9,26 +9,27 @@ import type { Job, Cena } from "@/types";
 import type { ReelProps } from "@pontob/schema";
 import styles from "./EditorView.module.css";
 
-// Player carregado sem SSR — usa APIs de browser
+// Player carregado sem SSR
 const ReelPlayer = dynamic(
   () => import("./ReelPlayer").then((m) => m.ReelPlayer),
   { ssr: false, loading: () => <div className={styles.playerLoading}>Carregando player...</div> }
 );
 
-// ── Constantes ────────────────────────────────────────────────────────────────
+// ?? Constantes ????????????????????????????????????????????????????????????????
 
 const TIPO_LABELS: Record<string, string> = {
   Hook: "Hook",
   FraseImpacto: "Frase de Impacto",
   ComparativoNumerico: "Comparativo",
-  VideoCitacao: "Vídeo + Citação",
+  VideoCitacao: "Video + Citacao",
   ListaPontos: "Lista de Pontos",
   MiniCaso: "Mini Caso",
-  TransicaoTexto: "Transição",
+  TransicaoTexto: "Transicao",
   CTA: "CTA",
   ConviteEvento: "Convite / Evento",
-  GraficoLinha: "Gráfico de Linha",
-  GraficoBarra: "Gráfico de Barras",
+  GraficoLinha: "Grafico de Linha",
+  GraficoBarra: "Grafico de Barras",
+  VideoSimples: "Video Simples",
 };
 
 const TIPO_COLORS: Record<string, string> = {
@@ -43,6 +44,7 @@ const TIPO_COLORS: Record<string, string> = {
   ConviteEvento: "var(--c-evento)",
   GraficoLinha: "var(--c-comparativo)",
   GraficoBarra: "var(--c-comparativo)",
+  VideoSimples: "var(--c-citacao)",
 };
 
 const FPS = 30;
@@ -56,7 +58,7 @@ function getPreview(cena: Cena): string {
   ).slice(0, 50);
 }
 
-// ── EditorView ────────────────────────────────────────────────────────────────
+// ?? EditorView ????????????????????????????????????????????????????????????????
 
 interface EditorViewProps {
   job: Job;
@@ -68,24 +70,32 @@ export function EditorView({ job, onNew }: EditorViewProps) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(0);
   const [rendering, setRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState<RenderProgress | null>(null);
-  const [outputPath, setOutputPath] = useState<string | null>(null); // só vai pra SuccessScreen após render na sessão atual
+  const [outputPath, setOutputPath] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
-  const previousOutput = job.outputPath; // render anterior — mostra botão de download no editor
+  const previousOutput = job.outputPath;
 
   const [refining, setRefining] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
   const [refineToast, setRefineToast] = useState<string | null>(null);
+  const [showRefineModal, setShowRefineModal] = useState(false);
+  const [refineBrief, setRefineBrief] = useState("");
 
-  // Música de fundo
   type MusicaItem = { filename: string; label: string; path: string };
   const [musicas, setMusicas] = useState<MusicaItem[]>([]);
-  // volume na UI: 0-100 (percentual). volume no schema/Remotion: 0-10.
-  // Conversão: UI → schema = / 10, schema → UI = * 10
   const [musicaFundo, setMusicaFundo] = useState<{ path: string; volume: number } | null>(
     job.scenes?.musica_fundo
       ? { path: job.scenes.musica_fundo.path, volume: (job.scenes.musica_fundo.volume ?? 3) * 10 }
       : null
   );
+  const [videoStartSegundos, setVideoStartSegundos] = useState<number>(
+    (job.scenes as Record<string, unknown>)?.video_start_segundos as number ?? 0
+  );
+  const videoDuration = job.videoDuration ?? null;
+  const [videoEndSegundos, setVideoEndSegundos] = useState<number>(() => {
+    const stored = (job.scenes as Record<string, unknown>)?.video_end_segundos;
+    if (typeof stored === "number" && stored > 0) return stored;
+    return videoDuration ?? 0;
+  });
 
   useEffect(() => {
     fetch("/api/musicas").then((r) => r.json()).then(setMusicas).catch(() => {});
@@ -93,18 +103,25 @@ export function EditorView({ job, onNew }: EditorViewProps) {
 
   const totalSec = scenes.reduce((acc, c) => acc + c.duracao_segundos, 0);
 
-  // Frame inicial do player quando a cena selecionada muda
+  // Duracao real do player = trecho ativo do video bruto (fim - inicio).
+  // NAO e a soma dos overlays.
+  const duracaoPlayer = videoEndSegundos > videoStartSegundos
+    ? videoEndSegundos - videoStartSegundos
+    : totalSec;
+
   const initialFrame = useMemo(() => {
     if (selectedIdx === null) return 0;
+    const cenaSelecionada = scenes[selectedIdx] as Record<string, unknown>;
+    if (typeof cenaSelecionada?.["inicio_overlay_segundos"] === "number") {
+      return Math.round((cenaSelecionada["inicio_overlay_segundos"] as number) * FPS);
+    }
     let acc = 0;
     for (let i = 0; i < selectedIdx; i++) {
-      acc += scenes[i]?.duracao_segundos ?? 0;
+      acc += (scenes[i]?.duracao_segundos ?? 0);
     }
     return Math.round(acc * FPS);
   }, [selectedIdx, scenes]);
 
-  // Props para o player — substitui o caminho de arquivo pelo endpoint HTTP
-  // para que o <Video> do browser consiga carregar o vídeo.
   const reelProps: ReelProps = useMemo(() => {
     const videoUrl = `/api/jobs/${job.id}/video`;
     const cenasComUrl = scenes.map((c) => {
@@ -114,8 +131,10 @@ export function EditorView({ job, onNew }: EditorViewProps) {
       return Object.keys(updates).length ? { ...c, ...updates } : c;
     });
     return {
-      duracao_total_estimada: totalSec,
+      duracao_total_estimada: duracaoPlayer,
       video_original_path: videoUrl,
+      video_start_segundos: videoStartSegundos,
+      video_end_segundos: videoEndSegundos > videoStartSegundos && videoEndSegundos > 0 ? videoEndSegundos : undefined,
       cenas: cenasComUrl as typeof scenes,
       cor_primaria: job.scenes?.cor_primaria,
       cor_secundaria: job.scenes?.cor_secundaria,
@@ -124,8 +143,8 @@ export function EditorView({ job, onNew }: EditorViewProps) {
       musica_fundo: musicaFundo
         ? { path: musicaFundo.path, volume: parseFloat((musicaFundo.volume / 10).toFixed(2)) }
         : undefined,
-    };
-  }, [scenes, totalSec, job.id, musicaFundo]);
+    } as ReelProps;
+  }, [scenes, duracaoPlayer, job.id, musicaFundo, videoStartSegundos, videoEndSegundos]);
 
   async function handleRender() {
     setRendering(true);
@@ -133,15 +152,19 @@ export function EditorView({ job, onNew }: EditorViewProps) {
     setRenderError(null);
 
     try {
-      // Salva as cenas editadas antes de renderizar — recalcula duracao_total_estimada
-      const duracaoAtual = scenes.reduce((acc, s) => acc + s.duracao_segundos, 0);
+      // Duracao total = janela de trim (fim - inicio). NUNCA soma dos overlays.
+      const duracaoTrim = videoEndSegundos > videoStartSegundos
+        ? parseFloat((videoEndSegundos - videoStartSegundos).toFixed(2))
+        : parseFloat(scenes.reduce((acc, s) => acc + s.duracao_segundos, 0).toFixed(2));
       const saveRes = await fetch(`/api/jobs/${job.id}/scenes`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...job.scenes,
           cenas: scenes,
-          duracao_total_estimada: parseFloat(duracaoAtual.toFixed(2)),
+          duracao_total_estimada: duracaoTrim,
+          video_start_segundos: videoStartSegundos,
+          video_end_segundos: videoEndSegundos > videoStartSegundos && videoEndSegundos > 0 ? videoEndSegundos : undefined,
           musica_fundo: musicaFundo
             ? { path: musicaFundo.path, volume: parseFloat((musicaFundo.volume / 10).toFixed(2)) }
             : undefined,
@@ -149,14 +172,14 @@ export function EditorView({ job, onNew }: EditorViewProps) {
       });
       if (!saveRes.ok) {
         let errMsg = `Erro ao salvar cenas (${saveRes.status})`;
-        try { const e = await saveRes.json(); errMsg = e.error ?? errMsg; } catch { /* corpo não é JSON */ }
+        try { const e = await saveRes.json(); errMsg = e.error ?? errMsg; } catch { /* noop */ }
         throw new Error(errMsg);
       }
 
       const res = await fetch(`/api/jobs/${job.id}/render`, { method: "POST" });
       if (!res.ok || !res.body) {
-        let errMsg = `Erro na renderização (${res.status})`;
-        try { const d = await res.json(); errMsg = d.error ?? errMsg; } catch { /* corpo não é JSON */ }
+        let errMsg = `Erro na renderizacao (${res.status})`;
+        try { const d = await res.json(); errMsg = d.error ?? errMsg; } catch { /* noop */ }
         throw new Error(errMsg);
       }
 
@@ -187,15 +210,21 @@ export function EditorView({ job, onNew }: EditorViewProps) {
     }
   }
 
-  async function handleRefine() {
+  async function handleRefine(brief?: string) {
+    setShowRefineModal(false);
     setRefining(true);
     setRefineError(null);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3 * 60 * 1000); // 3 min
+      const timeout = setTimeout(() => controller.abort(), 3 * 60 * 1000);
       let res: Response;
       try {
-        res = await fetch(`/api/jobs/${job.id}/refine`, { method: "POST", signal: controller.signal });
+        res = await fetch(`/api/jobs/${job.id}/refine`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brief: brief ?? "" }),
+          signal: controller.signal,
+        });
       } finally {
         clearTimeout(timeout);
       }
@@ -205,14 +234,14 @@ export function EditorView({ job, onNew }: EditorViewProps) {
           const data = await res.json();
           errMsg = data.error ?? errMsg;
           if (data.detalhe) errMsg += `\n${data.detalhe}`;
-        } catch { /* corpo não é JSON — mantém mensagem genérica */ }
+        } catch { /* noop */ }
         throw new Error(errMsg);
       }
       const data = await res.json();
       const novasCenas: Cena[] = data.scenes.cenas;
       setScenes(novasCenas);
       setSelectedIdx(0);
-      setRefineToast(`✦ Sequência refinada — ${novasCenas.length} cenas`);
+      setRefineToast(`Sequencia refinada ? ${novasCenas.length} cenas`);
       setTimeout(() => setRefineToast(null), 4000);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -234,31 +263,60 @@ export function EditorView({ job, onNew }: EditorViewProps) {
   return (
     <main className={styles.root}>
 
-      {/* Topbar */}
       <AppNav breadcrumb={job.fileName}>
-        <div className={styles.topbarMeta}>{scenes.length} cenas · {Math.round(totalSec)}s</div>
-        <Link href="/" className={styles.btnGhost}>Novo</Link>
+        <div className={styles.topbarMeta}>{scenes.length} cenas &middot; {Math.round(totalSec)}s</div>
+        <button onClick={onNew} className={styles.btnGhost}>Novo</button>
         {previousOutput && (
-          <a
-            href={`/api/jobs/${job.id}/download`}
-            download="reel.mp4"
-            className={styles.btnGhost}
-          >
-            ↓ Baixar
+          <a href={`/api/jobs/${job.id}/download`} download="reel.mp4" className={styles.btnGhost}>
+            &#8595; Baixar
           </a>
         )}
-        <ActionButton onClick={handleRefine} icon="✦">Refinar com IA</ActionButton>
-        <ActionButton onClick={handleRender} icon="⚡">Renderizar</ActionButton>
+        <ActionButton onClick={() => { setRefineBrief(""); setShowRefineModal(true); }} icon={"✦"}>Refinar com IA</ActionButton>
+        <ActionButton onClick={handleRender} icon={"▶"}>Renderizar</ActionButton>
       </AppNav>
 
-      {renderError && <div className={styles.errorBanner}>⚠ {renderError}</div>}
-      {refineError && <div className={styles.errorBanner}>⚠ {refineError}</div>}
+      {renderError && <div className={styles.errorBanner}>&#9888; {renderError}</div>}
+      {refineError && <div className={styles.errorBanner}>&#9888; {refineError}</div>}
       {refineToast && <div className={styles.refineToast}>{refineToast}</div>}
 
-      {/* Painel de música de fundo */}
+      {showRefineModal && (
+        <div className={styles.refineModalOverlay} onClick={() => setShowRefineModal(false)}>
+          <div className={styles.refineModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.refineModalTitle}>? Refinar com IA</div>
+            <p className={styles.refineModalDesc}>
+              Descreva o que precisa ser corrigido ou melhorado. O agente vai priorizar suas orientacoes.
+            </p>
+            <textarea
+              className={styles.refineModalTextarea}
+              placeholder="Ex: A FraseImpacto entrou cedo demais. O ConviteEvento ficou longo, divide com um VideoSimples."
+              value={refineBrief}
+              onChange={(e) => setRefineBrief(e.target.value)}
+              rows={5}
+              autoFocus
+            />
+            <div className={styles.refineModalActions}>
+              <button className={styles.refineModalCancel} onClick={() => setShowRefineModal(false)}>
+                Cancelar
+              </button>
+              <ActionButton onClick={() => handleRefine(refineBrief)} icon={"✦"}>
+                Refinar
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <VideoTrimBar
+        duration={videoDuration}
+        start={videoStartSegundos}
+        end={videoEndSegundos}
+        onStartChange={setVideoStartSegundos}
+        onEndChange={setVideoEndSegundos}
+      />
+
       {musicas.length > 0 && (
         <div className={styles.musicaBar}>
-          <span className={styles.musicaLabel}>♪ Música de fundo</span>
+          <span className={styles.musicaLabel}>&#9834; Musica de fundo</span>
           <select
             className={styles.musicaSelect}
             value={musicaFundo?.path ?? ""}
@@ -277,20 +335,14 @@ export function EditorView({ job, onNew }: EditorViewProps) {
             <div className={styles.musicaVolume}>
               <span className={styles.musicaVolLabel}>Volume</span>
               <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
+                type="range" min={0} max={100} step={1}
                 value={musicaFundo.volume}
                 onChange={(e) => setMusicaFundo({ ...musicaFundo, volume: Number(e.target.value) })}
                 className={styles.musicaSlider}
               />
               <div className={styles.musicaVolNum}>
                 <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={1}
+                  type="number" min={0} max={100} step={1}
                   value={musicaFundo.volume}
                   onChange={(e) => {
                     const v = Math.min(100, Math.max(0, Number(e.target.value) || 0));
@@ -305,12 +357,10 @@ export function EditorView({ job, onNew }: EditorViewProps) {
         </div>
       )}
 
-      {/* Body: 3 colunas */}
       <div className={styles.body}>
 
-        {/* Col 1 — lista de cenas */}
         <div className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>Sequência · {Math.round(totalSec)}s</div>
+          <div className={styles.sidebarHeader}>Sequencia &middot; {Math.round(totalSec)}s</div>
           {scenes.map((cena, i) => {
             const cor = TIPO_COLORS[cena.tipo] ?? "var(--c-transicao)";
             const label = TIPO_LABELS[cena.tipo] ?? cena.tipo;
@@ -341,17 +391,15 @@ export function EditorView({ job, onNew }: EditorViewProps) {
           })}
         </div>
 
-        {/* Col 2 — player */}
         <div className={styles.playerCol}>
           <div className={styles.playerWrap}>
             <ReelPlayer props={reelProps} initialFrame={initialFrame} />
           </div>
           <div className={styles.playerHint}>
-            Clique numa cena para pular · Edite à direita e o preview atualiza
+            Clique numa cena para pular &middot; Edite a direita e o preview atualiza
           </div>
         </div>
 
-        {/* Col 3 — painel de edição */}
         <div className={styles.detailCol}>
           {selected ? (
             <SceneDetail
@@ -361,8 +409,31 @@ export function EditorView({ job, onNew }: EditorViewProps) {
               especialistaSlug={job.especialista_slug}
               corPrimariaEspecialista={job.scenes?.cor_primaria}
               corSecundariaEspecialista={job.scenes?.cor_secundaria}
+              videoOriginalPath={`/api/jobs/${job.id}/video`}
               onChange={(updated) => {
                 const next = [...scenes];
+                const upd = updated as Record<string, unknown>;
+
+                const inicioEditada: number =
+                  typeof upd["inicio_overlay_segundos"] === "number"
+                    ? (upd["inicio_overlay_segundos"] as number)
+                    : next.slice(0, selectedIdx!).reduce((acc, s) => acc + s.duracao_segundos, 0);
+
+                const proxIdx = selectedIdx! + 1;
+                if (proxIdx < next.length) {
+                  const proxCena = next[proxIdx] as Record<string, unknown>;
+                  const inicioProxima: number =
+                    typeof proxCena["inicio_overlay_segundos"] === "number"
+                      ? (proxCena["inicio_overlay_segundos"] as number)
+                      : next.slice(0, proxIdx).reduce((acc, s, i) =>
+                          acc + (i === selectedIdx! ? updated.duracao_segundos : s.duracao_segundos), 0);
+
+                  const espacoDisponivel = inicioProxima - inicioEditada;
+                  if (espacoDisponivel > 0 && updated.duracao_segundos > espacoDisponivel) {
+                    updated = { ...updated, duracao_segundos: parseFloat(espacoDisponivel.toFixed(2)) };
+                  }
+                }
+
                 next[selectedIdx!] = updated;
                 setScenes(next);
               }}
@@ -396,7 +467,114 @@ export function EditorView({ job, onNew }: EditorViewProps) {
   );
 }
 
-// ── RenderingScreen ───────────────────────────────────────────────────────────
+// ?? VideoTrimBar ??????????????????????????????????????????????????????????????
+
+function VideoTrimBar({
+  duration,
+  start,
+  end,
+  onStartChange,
+  onEndChange,
+}: {
+  duration: number | null;
+  start: number;
+  end: number;
+  onStartChange: (v: number) => void;
+  onEndChange: (v: number) => void;
+}) {
+  const total = duration ?? Math.max(end, start + 1, 60);
+  const effectiveEnd = end > 0 ? end : total;
+  const startPct = Math.min(100, (start / total) * 100);
+  const endPct = Math.min(100, (effectiveEnd / total) * 100);
+  const activePct = Math.max(0, endPct - startPct);
+  const displayEnd = end > 0 ? end : total;
+
+  function fmt(s: number) {
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toFixed(1).padStart(4, "0");
+    return m > 0 ? `${m}:${sec}` : `${sec}s`;
+  }
+
+  return (
+    <div className={styles.trimBar}>
+      <span className={styles.trimLabel}>&#9986; Video bruto</span>
+      {duration != null && (
+        <span className={styles.trimDuration}>{fmt(duration)}</span>
+      )}
+      <div className={styles.trimTrackWrap}>
+        <div className={styles.trimTrack}>
+          <div
+            className={styles.trimActive}
+            style={{ left: `${startPct}%`, width: `${activePct}%` }}
+          />
+          <input
+            type="range"
+            className={`${styles.trimThumb} ${styles.trimThumbStart}`}
+            min={0}
+            max={total}
+            step={0.1}
+            value={start}
+            onChange={(e) => {
+              const v = Math.min(Number(e.target.value), end - 0.5);
+              onStartChange(parseFloat(v.toFixed(1)));
+            }}
+          />
+          <input
+            type="range"
+            className={`${styles.trimThumb} ${styles.trimThumbEnd}`}
+            min={0}
+            max={total}
+            step={0.1}
+            value={effectiveEnd}
+            onChange={(e) => {
+              const v = Math.max(Number(e.target.value), start + 0.5);
+              onEndChange(parseFloat(v.toFixed(1)));
+            }}
+          />
+        </div>
+        <div className={styles.trimLabels}>
+          <span>{fmt(start)}</span>
+          <span className={styles.trimActiveLabel}>{fmt(effectiveEnd - start)} ativo</span>
+          <span>{fmt(effectiveEnd)}</span>
+        </div>
+      </div>
+      <div className={styles.trimInputs}>
+        <div className={styles.trimInputGroup}>
+          <span className={styles.trimInputLabel}>Inicio</span>
+          <input
+            type="number"
+            className={styles.trimInput}
+            step={0.1}
+            min={0}
+            max={end - 0.1}
+            value={start}
+            onChange={(e) => {
+              const v = Math.min(Math.max(0, Number(e.target.value)), end - 0.5);
+              onStartChange(parseFloat(v.toFixed(1)));
+            }}
+          />
+        </div>
+        <div className={styles.trimInputGroup}>
+          <span className={styles.trimInputLabel}>Fim</span>
+          <input
+            type="number"
+            className={styles.trimInput}
+            step={0.1}
+            min={start + 0.1}
+            max={total}
+            value={effectiveEnd}
+            onChange={(e) => {
+              const v = Math.max(Math.min(total, Number(e.target.value)), start + 0.5);
+              onEndChange(parseFloat(v.toFixed(1)));
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ?? RenderingScreen ???????????????????????????????????????????????????????????
 
 function RenderingScreen({ progress }: { progress: RenderProgress | null }) {
   const pct = progress && progress.total > 0
@@ -407,7 +585,7 @@ function RenderingScreen({ progress }: { progress: RenderProgress | null }) {
       <div className={styles.renderCard}>
         <div className={styles.renderHeading}>
           <h2 className={styles.renderTitle}>Renderizando</h2>
-          <p className={styles.renderSubtitle}>O Remotion está gerando o reel. Não feche esta janela.</p>
+          <p className={styles.renderSubtitle}>O Remotion esta gerando o reel. Nao feche esta janela.</p>
         </div>
         <div className={styles.renderBox}>
           {progress && progress.total > 0 ? (
@@ -427,7 +605,7 @@ function RenderingScreen({ progress }: { progress: RenderProgress | null }) {
           ) : (
             <div className={styles.renderWaiting}>
               <div className={styles.renderPulseDot} />
-              Iniciando renderização...
+              Iniciando renderizacao...
             </div>
           )}
         </div>
@@ -436,7 +614,7 @@ function RenderingScreen({ progress }: { progress: RenderProgress | null }) {
   );
 }
 
-// ── RefiningScreen ────────────────────────────────────────────────────────────
+// ?? RefiningScreen ????????????????????????????????????????????????????????????
 
 function RefiningScreen() {
   return (
@@ -445,7 +623,7 @@ function RefiningScreen() {
         <div className={styles.renderHeading}>
           <h2 className={styles.renderTitle}>Refinando com IA</h2>
           <p className={styles.renderSubtitle}>
-            O Claude está analisando a transcrição e as cenas atuais para gerar uma versão melhorada.
+            O Claude esta analisando a transcricao e as cenas atuais para gerar uma versao melhorada.
           </p>
         </div>
         <div className={styles.renderBox}>
@@ -459,7 +637,7 @@ function RefiningScreen() {
   );
 }
 
-// ── SuccessScreen ─────────────────────────────────────────────────────────────
+// ?? SuccessScreen ?????????????????????????????????????????????????????????????
 
 function SuccessScreen({ jobId, outputPath, onNew }: { jobId: string; outputPath: string; onNew: () => void }) {
   const [cleanup, setCleanup] = useState(true);
@@ -485,9 +663,9 @@ function SuccessScreen({ jobId, outputPath, onNew }: { jobId: string; outputPath
   return (
     <main className={styles.successScreen}>
       <div className={styles.successCard}>
-        <div className={styles.successIcon}>✓</div>
+        <div className={styles.successIcon}>&#10003;</div>
         <h2 className={styles.successTitle}>Reel gerado</h2>
-        <p className={styles.successSubtitle}>O vídeo foi renderizado com sucesso.</p>
+        <p className={styles.successSubtitle}>O video foi renderizado com sucesso.</p>
         <div className={styles.successPathBox}>
           <div className={styles.successPathLabel}>Arquivo</div>
           <code className={styles.successPath}>{outputPath}</code>
@@ -495,25 +673,25 @@ function SuccessScreen({ jobId, outputPath, onNew }: { jobId: string; outputPath
         <label className={styles.cleanupRow}>
           <input type="checkbox" checked={cleanup} onChange={(e) => setCleanup(e.target.checked)} />
           <div className={styles.cleanupLabel}>
-            Limpar arquivos temporários após baixar
-            <span>Remove vídeo original, transcrição e JSONs. Mantém apenas o reel.</span>
+            Limpar arquivos temporarios apos baixar
+            <span>Remove video original, transcricao e JSONs. Mantem apenas o reel.</span>
           </div>
         </label>
         <div className={styles.successActions}>
-          <ActionButton onClick={handleDownload} disabled={downloading} icon="↓">
-            {downloading ? "Baixando..." : "Baixar vídeo"}
+          <ActionButton onClick={handleDownload} disabled={downloading} icon={"↓"}>
+            {downloading ? "Baixando..." : "Baixar video"}
           </ActionButton>
-          <Link href="/" className={styles.btnSecondary}>Novo vídeo</Link>
+          <Link href="/" className={styles.btnSecondary}>Novo video</Link>
         </div>
       </div>
     </main>
   );
 }
 
-// ── SceneDetail ───────────────────────────────────────────────────────────────
+// ?? SceneDetail ???????????????????????????????????????????????????????????????
 
 function SceneDetail({
-  cena, index, startAcumulado, especialistaSlug, corPrimariaEspecialista, corSecundariaEspecialista, onChange, onDelete, onMoveUp, onMoveDown,
+  cena, index, startAcumulado, especialistaSlug, corPrimariaEspecialista, corSecundariaEspecialista, videoOriginalPath, onChange, onDelete, onMoveUp, onMoveDown,
 }: {
   cena: Cena;
   index: number;
@@ -521,6 +699,7 @@ function SceneDetail({
   especialistaSlug?: string;
   corPrimariaEspecialista?: string;
   corSecundariaEspecialista?: string;
+  videoOriginalPath?: string;
   onChange: (c: Cena) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -556,22 +735,22 @@ function SceneDetail({
     );
   }
 
-  function numberField(key: string, label?: string, step = 0.5) {
+  function numberField(key: string, lbl?: string, step = 0.5) {
     if (!(key in c)) return null;
     return (
       <div key={key} className={styles.field}>
-        <label className={styles.fieldLabel}>{label ?? key}</label>
+        <label className={styles.fieldLabel}>{lbl ?? key}</label>
         <input className={styles.input} type="number" step={step} value={Number(c[key])}
           onChange={(e) => onChange({ ...cena, [key]: Number(e.target.value) } as Cena)} />
       </div>
     );
   }
 
-  function listField(key: string, label: string) {
+  function listField(key: string, lbl: string) {
     if (!(key in c)) return null;
     return (
       <div key={key} className={styles.field}>
-        <label className={styles.fieldLabel}>{label}</label>
+        <label className={styles.fieldLabel}>{lbl}</label>
         <textarea className={styles.input} rows={4}
           value={(c[key] as string[]).join("\n")}
           onChange={(e) => onChange({ ...cena, [key]: e.target.value.split("\n").filter(Boolean) } as Cena)} />
@@ -579,46 +758,24 @@ function SceneDetail({
     );
   }
 
-  function jsonField(key: string) {
-    if (!(key in c)) return null;
-    return (
-      <div key={key} className={styles.field}>
-        <label className={styles.fieldLabel}>{key} (JSON)</label>
-        <textarea className={`${styles.input} ${styles.inputMono}`} rows={6}
-          value={JSON.stringify(c[key], null, 2)}
-          onChange={(e) => {
-            try { onChange({ ...cena, [key]: JSON.parse(e.target.value) } as Cena); } catch { }
-          }} />
-      </div>
-    );
-  }
-
-  // Migra a cena para outro tipo, preservando campos comuns
   function migrarTipo(novoTipo: string) {
     if (novoTipo === cena.tipo) return;
     const dur = c["duracao_segundos"] ?? 8;
-    const videoPath = c["video_path"] ?? undefined;
+    const videoPath = c["video_path"] ?? videoOriginalPath ?? undefined;
     const startSeg = c["start_segundos"] ?? undefined;
-
-    // Campos que fazem sentido em qualquer tipo
     const base: Record<string, unknown> = { tipo: novoTipo, duracao_segundos: dur };
 
-    // Herda video_path e start_segundos se o novo tipo usa vídeo
-    const tiposComVideo = ["Hook", "VideoCitacao", "MiniCaso"];
-    if (tiposComVideo.includes(novoTipo) && videoPath) {
-      base["video_path"] = videoPath;
-      if (startSeg !== undefined) base["start_segundos"] = startSeg;
+    if (c["inicio_overlay_segundos"] !== undefined) {
+      base["inicio_overlay_segundos"] = c["inicio_overlay_segundos"];
     }
 
-    // Herda título se disponível e novo tipo o usa
     const tiposComTitulo = ["Hook", "FraseImpacto", "ListaPontos", "GraficoBarra", "GraficoLinha", "ConviteEvento"];
     if (tiposComTitulo.includes(novoTipo) && c["titulo"]) base["titulo"] = c["titulo"];
 
-    // Scaffolds mínimos por tipo de destino
     switch (novoTipo) {
       case "Hook":
         if (!base["sfx"]) base["sfx"] = { path: "sfx/whoosh.mp3", volume: 5 };
-        base["titulo"] = base["titulo"] ?? "TÍTULO DO HOOK";
+        base["titulo"] = base["titulo"] ?? "TITULO DO HOOK";
         base["palavras_destacadas"] = [];
         base["animacao_entrada"] = "spring";
         break;
@@ -631,11 +788,11 @@ function SceneDetail({
         break;
       case "ComparativoNumerico":
         if (!base["sfx"]) base["sfx"] = { path: "sfx/ding.mp3", volume: 5 };
-        base["metrica_nome"] = String(c["titulo"] ?? "Métrica");
+        base["metrica_nome"] = String(c["titulo"] ?? "Metrica");
         base["metrica_unidade"] = "";
         base["lados"] = [
-          { valor: "A", rotulo: "Opção A", eh_destaque: false },
-          { valor: "B", rotulo: "Opção B", eh_destaque: true },
+          { valor: "A", rotulo: "Opcao A", eh_destaque: false },
+          { valor: "B", rotulo: "Opcao B", eh_destaque: true },
         ];
         base["visualizacao"] = "numeros_grandes";
         break;
@@ -650,7 +807,7 @@ function SceneDetail({
         break;
       case "GraficoLinha":
         if (!base["sfx"]) base["sfx"] = { path: "sfx/slide.mp3", volume: 5 };
-        base["titulo"] = base["titulo"] ?? "Evolução";
+        base["titulo"] = base["titulo"] ?? "Evolucao";
         base["pontos"] = [
           { rotulo: "Jan", valor: 1 },
           { rotulo: "Fev", valor: 2 },
@@ -671,7 +828,7 @@ function SceneDetail({
         base["numerado"] = false;
         base["fundo"] = "navy";
         break;
-            case "MiniCaso":
+      case "MiniCaso":
         if (!base["sfx"]) base["sfx"] = { path: "sfx/ding.mp3", volume: 5 };
         base["resultado_texto"] = String(c["titulo"] ?? "Resultado aqui");
         base["contexto_texto"] = "";
@@ -687,7 +844,7 @@ function SceneDetail({
         if (!base["sfx"]) base["sfx"] = { path: "sfx/slide.mp3", volume: 5 };
         base["nome_evento"] = String(c["titulo"] ?? "Nome do Evento");
         base["descricao"] = "";
-        base["bullets"] = ["Benefício 1", "Benefício 2"];
+        base["bullets"] = ["Beneficio 1", "Beneficio 2"];
         base["fundo"] = "navy";
         break;
       case "CTA":
@@ -698,6 +855,12 @@ function SceneDetail({
         base["cor_seta"] = "secundaria";
         base["palavras_destacadas"] = [];
         break;
+      case "VideoSimples":
+        base["video_path"] = videoPath ?? videoOriginalPath ?? "";
+        if (startSeg !== undefined) base["start_segundos"] = startSeg;
+        else base["start_segundos"] = 0;
+        base["duracao_segundos"] = Number(dur);
+        break;
     }
 
     onChange(base as unknown as Cena);
@@ -705,19 +868,17 @@ function SceneDetail({
 
   return (
     <div className={styles.sceneDetail}>
-      {/* Header da cena */}
       <div className={styles.sceneDetailHeader}>
         <div className={styles.sceneDetailDot} style={{ background: cor }} />
         <h2 className={styles.sceneDetailTitle}>{label}</h2>
         <span className={styles.sceneDetailIndex}>#{String(index + 1).padStart(2, "0")}</span>
         <div className={styles.sceneDetailActions}>
-          <button className={styles.btnSceneAction} onClick={onMoveUp} title="Mover para cima">↑</button>
-          <button className={styles.btnSceneAction} onClick={onMoveDown} title="Mover para baixo">↓</button>
-          <button className={`${styles.btnSceneAction} ${styles.btnSceneDelete}`} onClick={onDelete} title="Excluir cena">✕</button>
+          <button className={styles.btnSceneAction} onClick={onMoveUp} title="Mover para cima">&#8593;</button>
+          <button className={styles.btnSceneAction} onClick={onMoveDown} title="Mover para baixo">&#8595;</button>
+          <button className={`${styles.btnSceneAction} ${styles.btnSceneDelete}`} onClick={onDelete} title="Excluir cena">&#10005;</button>
         </div>
       </div>
 
-      {/* Seletor de tipo */}
       <div className={styles.field} style={{ marginBottom: 0 }}>
         <label className={styles.fieldLabel}>Tipo de cena</label>
         <select
@@ -732,30 +893,55 @@ function SceneDetail({
         </select>
       </div>
 
-      {/* Timing */}
       <div className={styles.timingGroup}>
         <div className={styles.field}>
-          <label className={styles.fieldLabel}>
-            Início no vídeo (s)
-            {"start_segundos" in c
-              ? null
-              : <span style={{ fontWeight: 400, color: "var(--ink-3)", marginLeft: 4 }}>· auto</span>}
-          </label>
-          <input
-            className={styles.input}
-            type="number"
-            step={0.1}
-            min={0}
-            value={"start_segundos" in c ? Number(c["start_segundos"]) : parseFloat(startAcumulado.toFixed(1))}
-            onChange={(e) => onChange({ ...cena, start_segundos: Number(e.target.value) } as Cena)}
-            style={"start_segundos" in c ? {} : { opacity: 0.6 }}
-            title={"start_segundos" in c ? undefined : `Calculado automaticamente pela soma das cenas anteriores (${startAcumulado.toFixed(1)}s)`}
-          />
+          {"start_segundos" in c ? (
+            <>
+              <label className={styles.fieldLabel}>Inicio no video (s)</label>
+              <input
+                className={styles.input}
+                type="number"
+                step={0.1}
+                min={0}
+                value={Number(c["start_segundos"])}
+                onChange={(e) => onChange({ ...cena, start_segundos: Number(e.target.value) } as Cena)}
+              />
+            </>
+          ) : (
+            <>
+              <label className={styles.fieldLabel}>
+                Inicio overlay (s)
+                <span style={{ fontWeight: 400, color: "var(--ink-3)", marginLeft: 4 }}>
+                  &middot; auto = {parseFloat(startAcumulado.toFixed(1))}s
+                </span>
+              </label>
+              <input
+                className={styles.input}
+                type="number"
+                step={0.1}
+                min={0}
+                value={typeof c["inicio_overlay_segundos"] === "number"
+                  ? Number(c["inicio_overlay_segundos"])
+                  : parseFloat(startAcumulado.toFixed(1))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  const auto = parseFloat(startAcumulado.toFixed(1));
+                  if (Math.abs(val - auto) < 0.05) {
+                    const next = { ...cena } as Record<string, unknown>;
+                    delete next["inicio_overlay_segundos"];
+                    onChange(next as Cena);
+                  } else {
+                    onChange({ ...cena, inicio_overlay_segundos: val } as Cena);
+                  }
+                }}
+                title="Sobrescreve o inicio automatico no preview."
+              />
+            </>
+          )}
         </div>
-        {numberField("duracao_segundos", "Duração (s)", 0.5)}
+        {numberField("duracao_segundos", "Duracao (s)", 0.5)}
       </div>
 
-      {/* Campos de conteúdo */}
       {textField("titulo", true)}
       {textField("subtitulo")}
       {textField("nome_evento")}
@@ -776,7 +962,6 @@ function SceneDetail({
                   className={`${styles.logoSelectorItem} ${c["logo_url"] === logo.url ? styles.logoSelectorActive : ""}`}
                   onClick={() => onChange({ ...cena, logo_url: logo.url } as Cena)}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={logo.url} alt={logo.filename} className={styles.logoSelectorThumb} />
                 </div>
               ))}
@@ -784,7 +969,7 @@ function SceneDetail({
           ) : (
             <div className={styles.inputHint}>
               Nenhuma logo cadastrada para este especialista.
-              <a href="/especialistas" target="_blank" style={{ color: "var(--accent)", marginLeft: 4 }}>Cadastrar →</a>
+              <a href="/especialistas" target="_blank" style={{ color: "var(--accent)", marginLeft: 4 }}>Cadastrar &#8594;</a>
             </div>
           )}
           <input className={styles.input} type="text" placeholder="Ou cole uma URL diretamente..."
@@ -801,14 +986,14 @@ function SceneDetail({
               onChange={(e) => onChange({ ...cena, logo_altura: Number(e.target.value) } as Cena)} />
           </div>
           <div className={styles.field}>
-            <label className={styles.fieldLabel}>Posição</label>
+            <label className={styles.fieldLabel}>Posicao</label>
             <select className={styles.input}
               value={String(c["logo_posicao"] ?? "topo")}
               onChange={(e) => onChange({ ...cena, logo_posicao: e.target.value as "topo" | "centro" | "rodape" } as Cena)}
               style={{ appearance: "none", cursor: "pointer" }}>
               <option value="topo">Topo</option>
               <option value="centro">Centro</option>
-              <option value="rodape">Rodapé</option>
+              <option value="rodape">Rodape</option>
             </select>
           </div>
         </div>
@@ -823,7 +1008,6 @@ function SceneDetail({
       {textField("nome_mentor")}
       {textField("cargo_mentor")}
 
-      {/* Editor estruturado de lados (ComparativoNumerico) */}
       {cena.tipo === "ComparativoNumerico" && Array.isArray((c as Record<string,unknown>)["lados"]) ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Lados</label>
@@ -838,7 +1022,7 @@ function SceneDetail({
                   onChange({ ...cena, lados } as Cena);
                 }} />
               <input className={styles.input} type="text" style={{ flex: 2 }}
-                placeholder="Rótulo"
+                placeholder="Rotulo"
                 value={String(lado["rotulo"] ?? "")}
                 onChange={(e) => {
                   const lados = [...((c as Record<string,unknown>)["lados"] as Array<Record<string,unknown>>)];
@@ -859,7 +1043,6 @@ function SceneDetail({
         </div>
       ) : null}
 
-      {/* Editor estruturado de barras (GraficoBarra) */}
       {cena.tipo === "GraficoBarra" && Array.isArray((c as Record<string,unknown>)["barras"]) ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Barras</label>
@@ -868,7 +1051,7 @@ function SceneDetail({
             return (
               <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                 <input className={styles.input} type="text" style={{ flex: 2 }}
-                  placeholder="Rótulo"
+                  placeholder="Rotulo"
                   value={String(barra["rotulo"] ?? "")}
                   onChange={(e) => {
                     const next = [...barras];
@@ -877,7 +1060,6 @@ function SceneDetail({
                   }} />
                 <input className={styles.input} type="number" step={0.1} style={{ flex: 1 }}
                   placeholder="Valor"
-                  title="Valor numérico (define altura da barra)"
                   value={Number(barra["valor"] ?? 0)}
                   onChange={(e) => {
                     const next = [...barras];
@@ -885,8 +1067,7 @@ function SceneDetail({
                     onChange({ ...cena, barras: next } as Cena);
                   }} />
                 <input className={styles.input} type="text" style={{ flex: 1.5 }}
-                  placeholder="Display (ex: 0,8%–1,2%)"
-                  title="Texto exibido na barra"
+                  placeholder="Display"
                   value={String(barra["valor_display"] ?? "")}
                   onChange={(e) => {
                     const next = [...barras];
@@ -903,19 +1084,18 @@ function SceneDetail({
                   destaque
                 </label>
                 <button
-                  title="Remover barra"
                   style={{ flexShrink: 0, background: "none", border: "1px solid var(--b-mid)", borderRadius: 6, color: "var(--text-muted)", cursor: "pointer", padding: "2px 7px", fontSize: 14, lineHeight: 1 }}
                   onClick={() => {
                     if (barras.length <= 2) return;
                     const next = barras.filter((_, j) => j !== i);
                     onChange({ ...cena, barras: next } as Cena);
                   }}
-                >−</button>
+                >&#8722;</button>
               </div>
             );
           })}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Valor numérico = altura da barra · Display = texto visível</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Valor numerico = altura &middot; Display = texto visivel</div>
             <button
               style={{ background: "var(--accent)", border: "none", borderRadius: 6, color: "#fff", cursor: "pointer", padding: "4px 12px", fontSize: 12, fontWeight: 600 }}
               onClick={() => {
@@ -929,7 +1109,6 @@ function SceneDetail({
         </div>
       ) : null}
 
-      {/* Editor estruturado de pontos (GraficoLinha) */}
       {cena.tipo === "GraficoLinha" && Array.isArray((c as Record<string,unknown>)["pontos"]) ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Pontos</label>
@@ -938,7 +1117,7 @@ function SceneDetail({
             return (
               <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
                 <input className={styles.input} type="text" style={{ flex: 2 }}
-                  placeholder="Rótulo (ex: Jan, 2023)"
+                  placeholder="Rotulo"
                   value={String(ponto["rotulo"] ?? "")}
                   onChange={(e) => {
                     const next = [...pontos];
@@ -954,19 +1133,17 @@ function SceneDetail({
                     onChange({ ...cena, pontos: next } as Cena);
                   }} />
                 <button
-                  title="Remover ponto"
                   style={{ flexShrink: 0, background: "none", border: "1px solid var(--b-mid)", borderRadius: 6, color: "var(--text-muted)", cursor: "pointer", padding: "2px 7px", fontSize: 14, lineHeight: 1 }}
                   onClick={() => {
                     if (pontos.length <= 2) return;
                     const next = pontos.filter((_, j) => j !== i);
                     onChange({ ...cena, pontos: next } as Cena);
                   }}
-                >−</button>
+                >&#8722;</button>
               </div>
             );
           })}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Unidade: {String((c as Record<string,unknown>)["unidade"] ?? "—")}</div>
             <button
               style={{ background: "var(--accent)", border: "none", borderRadius: 6, color: "#fff", cursor: "pointer", padding: "4px 12px", fontSize: 12, fontWeight: 600 }}
               onClick={() => {
@@ -980,13 +1157,12 @@ function SceneDetail({
         </div>
       ) : null}
 
-      {/* pontos: só para ListaPontos */}
       {cena.tipo === "ListaPontos" ? listField("pontos", "Pontos (um por linha)") : null}
       {cena.tipo === "ListaPontos" ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Estilo da lista</label>
           <div style={{ display: "flex", gap: 8 }}>
-            {([{ val: false, label: "● Bullets" }, { val: true, label: "1. Numerado" }] as const).map(({ val, label }) => {
+            {([{ val: false, label: "Bullets" }, { val: true, label: "1. Numerado" }] as const).map(({ val, label: lbl }) => {
               const ativo = (c["numerado"] ?? false) === val;
               return (
                 <button
@@ -999,7 +1175,7 @@ function SceneDetail({
                     color: ativo ? "var(--text-main)" : "var(--text-muted)",
                     fontSize: 12, fontWeight: ativo ? 700 : 400,
                   }}
-                >{label}</button>
+                >{lbl}</button>
               );
             })}
           </div>
@@ -1008,7 +1184,6 @@ function SceneDetail({
       {listField("bullets", "Bullets (um por linha)")}
       {listField("frases", "Frases (uma por linha)")}
 
-      {/* Editor de palavras destacadas — Hook, FraseImpacto, MiniCaso, CTA */}
       {(cena.tipo === "Hook" || cena.tipo === "FraseImpacto" || cena.tipo === "MiniCaso" || cena.tipo === "CTA") ? (() => {
         const palavras = (Array.isArray(c["palavras_destacadas"]) ? c["palavras_destacadas"] : []) as Array<{ palavra: string; cor: string }>;
         return (
@@ -1031,7 +1206,11 @@ function SceneDetail({
                 <input
                   type="color"
                   style={{ width: 36, height: 32, padding: 2, background: "var(--surface-raised)", border: "1px solid var(--b-mid)", borderRadius: 6, cursor: "pointer", flexShrink: 0 }}
-                  value={pw.cor.startsWith("#") ? pw.cor : (corPrimariaEspecialista ?? "#E63946")}
+                  value={
+                    pw.cor.startsWith("#") ? pw.cor
+                    : pw.cor === "secundaria" ? (corSecundariaEspecialista ?? "#F4C430")
+                    : (corPrimariaEspecialista ?? "#E63946")
+                  }
                   onChange={(e) => {
                     const next = [...palavras];
                     next[i] = { ...next[i], cor: e.target.value };
@@ -1045,7 +1224,7 @@ function SceneDetail({
                     const next = palavras.filter((_, j) => j !== i);
                     onChange({ ...cena, palavras_destacadas: next } as Cena);
                   }}
-                >−</button>
+                >&#8722;</button>
               </div>
             ))}
             {palavras.length < 3 ? (
@@ -1061,7 +1240,6 @@ function SceneDetail({
         );
       })() : null}
 
-      {/* Cor de destaque — ComparativoNumerico */}
       {cena.tipo === "ComparativoNumerico" ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Cor do lado em destaque</label>
@@ -1072,17 +1250,15 @@ function SceneDetail({
               onChange={(e) => onChange({ ...cena, cor_destaque: e.target.value } as Cena)} />
             <input className={styles.input} type="text" style={{ flex: 1, fontFamily: "monospace" }}
               value={String(c["cor_destaque"] ?? "")}
-              placeholder={corPrimariaEspecialista ?? "padrão do especialista"}
+              placeholder={corPrimariaEspecialista ?? "padrao do especialista"}
               onChange={(e) => onChange({ ...cena, cor_destaque: e.target.value || undefined } as Cena)} />
           </div>
         </div>
       ) : null}
 
-
-      {/* SFX por cena */}
       {(() => {
         const SFX_OPCOES = [
-          { path: "sfx/whoosh.mp3",     label: "whoosh",     desc: "entrada rápida" },
+          { path: "sfx/whoosh.mp3",     label: "whoosh",     desc: "entrada rapida" },
           { path: "sfx/slide.mp3",      label: "slide",      desc: "movimento suave" },
           { path: "sfx/pop.mp3",        label: "pop",        desc: "item aparecendo" },
           { path: "sfx/ding.mp3",       label: "ding",       desc: "destaque / resultado" },
@@ -1105,7 +1281,7 @@ function SceneDetail({
                 <button
                   style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 11, padding: 0 }}
                   onClick={() => onChange({ ...cena, sfx: undefined } as Cena)}
-                >✕ remover</button>
+                >&#10005; remover</button>
               ) : null}
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: hasSfx ? 8 : 0 }}>
@@ -1113,7 +1289,6 @@ function SceneDetail({
                 const ativo = sfx?.path === op.path;
                 return (
                   <div key={op.path} style={{ display: "flex", gap: 3, alignItems: "stretch" }}>
-                    {/* Botão de seleção */}
                     <button
                       onClick={() => onChange({ ...cena, sfx: ativo ? undefined : { path: op.path, volume: sfx?.volume ?? 5, inicio_segundos: sfx?.inicio_segundos, fim_segundos: sfx?.fim_segundos } } as Cena)}
                       style={{
@@ -1128,7 +1303,6 @@ function SceneDetail({
                       <span style={{ fontSize: 12, fontWeight: ativo ? 700 : 400 }}>{op.label}</span>
                       <span style={{ fontSize: 10, opacity: 0.6 }}>{op.desc}</span>
                     </button>
-                    {/* Botão de prévia */}
                     <button
                       title="Ouvir"
                       onClick={(e) => { e.stopPropagation(); previewSfx(op.path, sfx?.volume ?? 5); }}
@@ -1141,7 +1315,7 @@ function SceneDetail({
                         fontSize: 11,
                         lineHeight: 1,
                       }}
-                    >▶</button>
+                    >&#9654;</button>
                   </div>
                 );
               })}
@@ -1158,7 +1332,7 @@ function SceneDetail({
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Início (s)</div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Inicio (s)</div>
                   <input
                     className={styles.input}
                     type="number" min={0} step={1}
@@ -1166,18 +1340,16 @@ function SceneDetail({
                     onChange={(e) => onChange({ ...cena, sfx: { ...sfx, inicio_segundos: parseInt(e.target.value) || 0 } } as Cena)}
                   />
                 </div>
-
               </div>
             ) : null}
           </div>
         );
       })()}
 
-      {/* Campos de cor por cena — GraficoLinha e GraficoBarra */}
       {(cena.tipo === "GraficoLinha" || cena.tipo === "GraficoBarra") ? (
         <div className={styles.timingGroup}>
           <div className={styles.field}>
-            <label className={styles.fieldLabel}>Cor primária</label>
+            <label className={styles.fieldLabel}>Cor primaria</label>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <input type="color"
                 style={{ width: 36, height: 32, padding: 2, background: "var(--surface-raised)", border: "1px solid var(--b-mid)", borderRadius: 6, cursor: "pointer" }}
@@ -1185,12 +1357,12 @@ function SceneDetail({
                 onChange={(e) => onChange({ ...cena, cor_primaria: e.target.value } as Cena)} />
               <input className={styles.input} type="text" style={{ flex: 1, fontFamily: "monospace" }}
                 value={String(c["cor_primaria"] ?? "")}
-                placeholder={corPrimariaEspecialista ?? "padrão do especialista"}
+                placeholder={corPrimariaEspecialista ?? "padrao do especialista"}
                 onChange={(e) => onChange({ ...cena, cor_primaria: e.target.value || undefined } as Cena)} />
             </div>
           </div>
           <div className={styles.field}>
-            <label className={styles.fieldLabel}>Cor secundária</label>
+            <label className={styles.fieldLabel}>Cor secundaria</label>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <input type="color"
                 style={{ width: 36, height: 32, padding: 2, background: "var(--surface-raised)", border: "1px solid var(--b-mid)", borderRadius: 6, cursor: "pointer" }}
@@ -1198,7 +1370,7 @@ function SceneDetail({
                 onChange={(e) => onChange({ ...cena, cor_secundaria: e.target.value } as Cena)} />
               <input className={styles.input} type="text" style={{ flex: 1, fontFamily: "monospace" }}
                 value={String(c["cor_secundaria"] ?? "")}
-                placeholder={corSecundariaEspecialista ?? "padrão do especialista"}
+                placeholder={corSecundariaEspecialista ?? "padrao do especialista"}
                 onChange={(e) => onChange({ ...cena, cor_secundaria: e.target.value || undefined } as Cena)} />
             </div>
           </div>

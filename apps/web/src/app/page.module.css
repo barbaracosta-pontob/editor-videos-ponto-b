@@ -346,6 +346,49 @@
   border-color: var(--b-strong);
 }
 
+/* ── Banner de erro ──────────────────────────────────────────── */
+
+.errorBanner {
+  position: relative;
+  background: color-mix(in srgb, #e53935 10%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, #e53935 35%, transparent);
+  border-radius: var(--r-md);
+  padding: 12px 36px 12px 14px;
+  margin-bottom: 12px;
+}
+
+.errorBannerTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e53935;
+  margin-bottom: 4px;
+}
+
+.errorBannerMessage {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.errorBannerClose {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--ink-ghost);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.errorBannerClose:hover {
+  color: var(--ink);
+}
+
 /* ── CTA ──────────────────────────────────────────────────────── */
 
 .btnSubmit {

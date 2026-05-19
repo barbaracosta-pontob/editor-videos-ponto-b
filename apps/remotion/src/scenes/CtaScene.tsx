@@ -9,7 +9,7 @@ import {
   staticFile,
 } from "remotion";
 import type { CTA } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap , resolveAudioSrc } from "../theme";
+import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap, resolveWordColor, resolveAudioSrc } from "../theme";
 
 export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -28,11 +28,11 @@ export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria
 
   const setaY = 16 * Math.sin((frame / fps) * 2 * Math.PI * 1.4);
   const setaCor = (cena.palavras_destacadas && cena.palavras_destacadas.length > 0)
-    ? cena.palavras_destacadas[0].cor
+    ? resolveWordColor(cena.palavras_destacadas[0].cor, corPrimaria, corSecundaria)
     : (corPrimaria ?? colors.red);
 
   const tokens = cena.texto_principal.split(/(\s+)/);
-  const corMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? []);
+  const corMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? [], corPrimaria, corSecundaria);
 
   return (
     <AbsoluteFill>

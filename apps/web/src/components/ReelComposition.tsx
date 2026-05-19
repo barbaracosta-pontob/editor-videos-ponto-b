@@ -77,12 +77,23 @@ function resolveFontFamily(fonteFamilia?: string): string {
  * palavras: array de {palavra, cor}
  * resolver: makeCorDestaque(...)
  */
+function resolveWordColor(cor: string, corPrimaria?: string, corSecundaria?: string): string {
+  const lower = cor.toLowerCase().trim();
+  if (lower === "primaria") return corPrimaria ?? colors.red;
+  if (lower === "secundaria") return corSecundaria ?? colors.yellow;
+  if (lower === "branco" || lower === "white") return colors.white;
+  return cor;
+}
+
 function buildTokenCorMap(
   tokens: string[],
-  palavras: Array<{ palavra: string; cor: string }>
+  palavras: Array<{ palavra: string; cor: string }>,
+  corPrimaria?: string,
+  corSecundaria?: string,
 ): (string | null)[] {
   const corMap: (string | null)[] = new Array(tokens.length).fill(null);
   for (const pw of palavras) {
+    const corResolvida = resolveWordColor(pw.cor, corPrimaria, corSecundaria);
     const palavraLimpa = pw.palavra.toLowerCase().replace(/[.,!?;:]/g, "");
     const palavraTokens = palavraLimpa.split(/\s+/).filter(Boolean);
     let ti = 0;
@@ -98,7 +109,7 @@ function buildTokenCorMap(
           tokens[idx].trim().replace(/[.,!?;:]/g, "").toLowerCase() === palavraTokens[k]
         );
         if (match) {
-          candidates.forEach((idx) => { corMap[idx] = pw.cor; });
+          candidates.forEach((idx) => { corMap[idx] = corResolvida; });
         }
       }
       ti++;
@@ -114,21 +125,28 @@ export const ReelForPlayer: React.FC<ReelProps> = (props) => {
     let cursor = 0;
     return props.cenas.map((cena, index) => {
       const duracaoFrames = Math.max(1, Math.round(cena.duracao_segundos * FPS));
-      const inicioFrames = Math.round(cursor * FPS);
+      // Se a cena de overlay tem inicio_overlay_segundos definido pelo usuário,
+      // ele sobrescreve o cursor acumulado.
+      const cenaComInicio = cena as Record<string, unknown>;
+      const inicioOverride = typeof cenaComInicio["inicio_overlay_segundos"] === "number"
+        ? (cenaComInicio["inicio_overlay_segundos"] as number)
+        : null;
+      const inicioSegundos = inicioOverride !== null ? inicioOverride : cursor;
+      const inicioFrames = Math.round(inicioSegundos * FPS);
       cursor += cena.duracao_segundos;
       return { cena, inicioFrames, duracaoFrames, index };
     });
   })();
 
-  const hookCena = props.cenas.find(
-    (c): c is Extract<Cena, { tipo: "Hook" }> => c.tipo === "Hook"
-  );
   const videoPath =
-    hookCena?.video_path ??
     props.video_original_path ??
     (props.cenas.find((c) => "video_path" in c) as { video_path: string } | undefined)?.video_path;
 
-  const videoStartFrom = Math.round((hookCena?.start_segundos ?? 0) * FPS);
+  const videoStartFrom = Math.round((props.video_start_segundos ?? 0) * FPS);
+  const videoEndRaw = (props as Record<string, unknown>).video_end_segundos;
+  const videoEndAt = typeof videoEndRaw === "number" && videoEndRaw > (props.video_start_segundos ?? 0)
+    ? Math.round(videoEndRaw * FPS)
+    : undefined;
 
   // Carrega a fonte do especialista no browser player
   useEffect(() => {
@@ -147,6 +165,7 @@ export const ReelForPlayer: React.FC<ReelProps> = (props) => {
         <Video
           src={videoPath}
           startFrom={videoStartFrom}
+          {...(videoEndAt != null ? { endAt: videoEndAt } : {})}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : null}
@@ -201,6 +220,7 @@ const SceneRouter: React.FC<{ cena: Cena; corPrimaria?: string; corSecundaria?: 
     case "ConviteEvento": return <ConviteEventoOverlay cena={cena} corPrimaria={corPrimaria} fonteFamilia={fonteFamilia} />;
     case "GraficoBarra": return <GraficoBarraOverlay cena={cena} corPrimaria={corPrimaria} corSecundaria={corSecundaria} fonteFamilia={fonteFamilia} />;
     case "GraficoLinha": return <GraficoLinhaOverlay cena={cena} corPrimaria={corPrimaria} corSecundaria={corSecundaria} fonteFamilia={fonteFamilia} />;
+    case "VideoSimples": return null; // Só o vídeo de fundo, sem overlay
     default: return null;
   }
 };
@@ -226,7 +246,7 @@ const HookOverlay: React.FC<{ cena: Extract<Cena, { tipo: "Hook" }>; corPrimaria
   const tokens = cena.titulo.split(/(\s+)/);
   const fontFamily = resolveFontFamily(fonteFamilia);
 
-  const hookCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas);
+  const hookCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas, corPrimaria, corSecundaria);
 
   return (
     <AbsoluteFill>
@@ -310,7 +330,7 @@ const FraseImpactoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "FraseImpacto"
   const y = interpolate(s, [0, 1], [30, 0]);
   const tokens = cena.texto.split(/(\s+)/);
   const fontFamily = resolveFontFamily(fonteFamilia);
-  const fraseCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? []);
+  const fraseCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? [], corPrimaria, corSecundaria);
 
   return (
     <AbsoluteFill>
@@ -448,7 +468,7 @@ const MiniCasoOverlay: React.FC<{ cena: Extract<Cena, { tipo: "MiniCaso" }>; cor
   const tokens = cena.resultado_texto.split(/(\s+)/);
   const accentColor = corPrimaria ?? colors.red;
   const fontFamily = resolveFontFamily(fonteFamilia);
-  const casoCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? []);
+  const casoCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? [], corPrimaria, corSecundaria);
 
   return (
     <AbsoluteFill>
@@ -789,11 +809,11 @@ const CtaOverlay: React.FC<{ cena: Extract<Cena, { tipo: "CTA" }>; corPrimaria?:
   const y = interpolate(s, [0, 1], [60, 0]);
   const setaY = 16 * Math.sin((frame / fps) * 2 * Math.PI * 1.4);
   const setaCor = (cena.palavras_destacadas && cena.palavras_destacadas.length > 0)
-    ? cena.palavras_destacadas[0].cor
+    ? resolveWordColor(cena.palavras_destacadas[0].cor, corPrimaria, corSecundaria)
     : (corPrimaria ?? colors.red);
 
   const tokens = cena.texto_principal.split(/(\s+)/);
-  const ctaCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? []);
+  const ctaCorMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? [], corPrimaria, corSecundaria);
 
   return (
     <AbsoluteFill>

@@ -1,7 +1,7 @@
 /**
  * POST /api/jobs
- * Recebe o vídeo + brief + especialista_slug.
- * Roda: transcrição (Python) → análise (Claude) → retorna Job com cenas prontas.
+ * Recebe o video + brief + especialista_slug.
+ * Roda: transcricao (Python) -> analise (Claude) -> retorna Job com cenas prontas.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,10 +17,9 @@ import { getEspecialistaOrGenerico } from "../../../lib/db";
 
 const execFileAsync = promisify(execFile);
 
-// Raiz do monorepo — 3 níveis acima de apps/web/src/app/api/jobs
+// Raiz do monorepo
 const REPO_ROOT = path.resolve(process.cwd(), "../..");
 
-// JOBS_DIR: respeita variável de ambiente se definida, senão usa ./jobs na raiz do monorepo
 const JOBS_DIR = process.env.JOBS_DIR
   ? path.resolve(REPO_ROOT, process.env.JOBS_DIR)
   : path.join(REPO_ROOT, "jobs");
@@ -39,19 +38,17 @@ export async function POST(req: NextRequest) {
     const brief = (form.get("brief") as string) ?? "";
     const especialistaSlug = (form.get("especialista_slug") as string) ?? "generico";
 
-    if (!videoFile) return NextResponse.json({ error: "Vídeo não enviado" }, { status: 400 });
+    if (!videoFile) return NextResponse.json({ error: "Video nao enviado" }, { status: 400 });
 
-    // Cria pasta do job
     const jobId = crypto.randomUUID().slice(0, 8);
     const jobDir = path.join(JOBS_DIR, jobId);
     await mkdir(jobDir, { recursive: true });
 
-    // Salva o vídeo
     const videoPath = path.join(jobDir, videoFile.name);
     const videoBuffer = Buffer.from(await videoFile.arrayBuffer());
     await writeFile(videoPath, videoBuffer);
 
-    // --- ETAPA 1: Transcrição ---
+    // --- ETAPA 1: Transcricao ---
     const transcriptPath = path.join(jobDir, "transcript.json");
     const pythonBin = existsSync(PYTHON) ? PYTHON : "python3";
 
@@ -68,7 +65,6 @@ export async function POST(req: NextRequest) {
     // --- ETAPA 2: Carrega especialista ---
     const rawEspecialista = getEspecialistaOrGenerico(especialistaSlug);
 
-    // Mapeia campos do banco para o formato esperado pelo agente
     const especialista: Parameters<typeof analyze>[0]["especialista"] = {
       nome: rawEspecialista.nome || "Especialista",
       cargo: rawEspecialista.cargo || "",
@@ -98,19 +94,18 @@ export async function POST(req: NextRequest) {
       observacoes: [
         rawEspecialista.brief_padrao || null,
         rawEspecialista.posicionamento_texto
-          ? `Posicionamento padrão de texto: ${rawEspecialista.posicionamento_texto}`
+          ? "Posicionamento padrao de texto: " + rawEspecialista.posicionamento_texto
           : null,
       ]
         .filter(Boolean)
         .join("\n") || undefined,
     };
 
-    // Brief por job é somado ao brief_padrao do especialista (não substitui)
     const briefFinal = [rawEspecialista.brief_padrao, brief]
       .filter(Boolean)
       .join("\n\n---\nBRIEF DO JOB:\n") || undefined;
 
-    // --- ETAPA 3: Análise Claude ---
+    // --- ETAPA 3: Analise Claude ---
     const result = await analyze({
       transcript,
       videoOriginalPath: videoPath,
@@ -118,9 +113,23 @@ export async function POST(req: NextRequest) {
       brief: briefFinal,
     });
 
-    // Injeta identidade visual do especialista no scenes.json para uso no render e player
+    // Calcula video_end_segundos a partir do que o agente definiu:
+    // start + duracao_total = fim da janela ativa
+    const scenesRaw = result.scenes as Record<string, unknown>;
+    const agentStart = typeof scenesRaw.video_start_segundos === "number"
+      ? scenesRaw.video_start_segundos as number
+      : 0;
+    const agentDuracao = typeof scenesRaw.duracao_total_estimada === "number"
+      ? scenesRaw.duracao_total_estimada as number
+      : (result.scenes.cenas ?? []).reduce((acc: number, c: { duracao_segundos: number }) => acc + c.duracao_segundos, 0);
+    const agentEnd = typeof scenesRaw.video_end_segundos === "number"
+      ? scenesRaw.video_end_segundos as number
+      : Math.round((agentStart + agentDuracao) * 10) / 10;
+
     const scenesComCores = {
       ...result.scenes,
+      video_start_segundos: agentStart,
+      video_end_segundos: agentEnd,
       cor_primaria: rawEspecialista.cor_primaria || undefined,
       cor_secundaria: rawEspecialista.cor_secundaria || undefined,
       fonte_url: rawEspecialista.fonte_url || undefined,
@@ -131,7 +140,6 @@ export async function POST(req: NextRequest) {
     const scenesPath = path.join(jobDir, "scenes.json");
     await writeFile(scenesPath, JSON.stringify(scenesComCores, null, 2), "utf-8");
 
-    // Retorna o job completo
     return NextResponse.json({
       id: jobId,
       fileName: videoFile.name,
@@ -154,7 +162,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * GET /api/jobs
- * Lista todos os jobs processados (que têm scenes.json).
+ * Lista todos os jobs processados.
  */
 export async function GET() {
   try {

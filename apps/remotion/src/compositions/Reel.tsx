@@ -50,22 +50,30 @@ export const Reel: React.FC<ReelProps> = (props) => {
     let cursor = 0;
     return props.cenas.map((cena, index) => {
       const duracaoFrames = Math.max(1, Math.round(cena.duracao_segundos * FPS));
-      const inicioFrames = Math.round(cursor * FPS);
+      // Se a cena de overlay tem inicio_overlay_segundos definido, usa esse valor
+      const cenaRaw = cena as Record<string, unknown>;
+      const inicioOverride = typeof cenaRaw["inicio_overlay_segundos"] === "number"
+        ? (cenaRaw["inicio_overlay_segundos"] as number)
+        : null;
+      const inicioSegundos = inicioOverride !== null ? inicioOverride : cursor;
+      const inicioFrames = Math.round(inicioSegundos * FPS);
       cursor += cena.duracao_segundos;
       return { cena, inicioFrames, duracaoFrames, index };
     });
   }, [props.cenas]);
 
-  const hookCena = props.cenas.find(
-    (c): c is Extract<Cena, { tipo: "Hook" }> => c.tipo === "Hook"
-  );
   const videoPath =
-    hookCena?.video_path ??
     props.video_original_path ??
     (props.cenas.find((c) => "video_path" in c) as { video_path: string } | undefined)
       ?.video_path;
 
-  const videoStartFrom = Math.round((hookCena?.start_segundos ?? 0) * FPS);
+  // video_start_segundos define onde o vídeo de fundo começa — independente
+  // de qualquer cena. Permite editar o início de cada overlay sem mover o vídeo.
+  const videoStartFrom = Math.round((props.video_start_segundos ?? 0) * FPS);
+  // video_end_segundos: ponto de corte da cauda do vídeo bruto (em frames absolutos do arquivo).
+  const videoEndAt = props.video_end_segundos != null
+    ? Math.round((props.video_end_segundos as number) * FPS)
+    : undefined;
 
   return (
     <AbsoluteFill style={{ backgroundColor: colors.navy }}>
@@ -75,6 +83,7 @@ export const Reel: React.FC<ReelProps> = (props) => {
         <OffthreadVideo
           src={videoPath}
           startFrom={videoStartFrom}
+          {...(videoEndAt != null ? { endAt: videoEndAt } : {})}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : null}
@@ -146,6 +155,8 @@ const SceneRouter: React.FC<{
       return <GraficoLinhaScene cena={cena} corPrimaria={corPrimaria} corSecundaria={corSecundaria} fonteFamilia={fonteFamilia} />;
     case "GraficoBarra":
       return <GraficoBarraScene cena={cena} corPrimaria={corPrimaria} corSecundaria={corSecundaria} fonteFamilia={fonteFamilia} />;
+    case "VideoSimples":
+      return null; // Só o vídeo de fundo, sem overlay
     default: {
       const _exhaustive: never = cena;
       return <PlaceholderScene tipo={(_exhaustive as Cena).tipo} />;
@@ -156,6 +167,7 @@ const SceneRouter: React.FC<{
 export const defaultReelProps: ReelProps = {
   duracao_total_estimada: 66,
   video_original_path: "jobs/teste01/video.mp4",
+  video_start_segundos: 0,
   cenas: [
     {
       tipo: "Hook",
@@ -164,8 +176,6 @@ export const defaultReelProps: ReelProps = {
         { palavra: "20 MIL", cor: "primaria" },
         { palavra: "2 MILHOES", cor: "primaria" },
       ],
-      video_path: "jobs/teste01/video.mp4",
-      start_segundos: 0,
       duracao_segundos: 6,
       animacao_entrada: "spring",
     },

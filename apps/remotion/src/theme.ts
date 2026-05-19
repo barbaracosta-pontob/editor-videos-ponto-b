@@ -76,12 +76,35 @@ export const resolveAudioSrc = (
   return staticFileFn(path);
 };
 
+/**
+ * Resolve uma cor que pode ser:
+ * - Um hex literal ("#E63946")
+ * - Um alias semântico ("primaria", "secundaria", "branco")
+ *
+ * Aceita um resolvedor opcional para os aliases. Se não fornecido,
+ * usa os defaults de cores do tema.
+ */
+export const resolveWordColor = (
+  cor: string,
+  corPrimaria?: string,
+  corSecundaria?: string,
+): string => {
+  const lower = cor.toLowerCase().trim();
+  if (lower === "primaria") return corPrimaria ?? colors.red;
+  if (lower === "secundaria") return corSecundaria ?? colors.yellow;
+  if (lower === "branco" || lower === "white") return colors.white;
+  return cor; // assume hex ou qualquer valor CSS válido
+};
+
 export const buildTokenCorMap = (
   tokens: string[],
   palavras: Array<{ palavra: string; cor: string }>,
+  corPrimaria?: string,
+  corSecundaria?: string,
 ): (string | null)[] => {
   const corMap: (string | null)[] = new Array(tokens.length).fill(null);
   for (const pw of palavras) {
+    const corResolvida = resolveWordColor(pw.cor, corPrimaria, corSecundaria);
     const palavraLimpa = pw.palavra.toLowerCase().replace(/[.,!?;:]/g, "");
     const palavraTokens = palavraLimpa.split(/\s+/).filter(Boolean);
     let ti = 0;
@@ -97,7 +120,7 @@ export const buildTokenCorMap = (
           tokens[idx].trim().replace(/[.,!?;:]/g, "").toLowerCase() === palavraTokens[k]
         );
         if (match) {
-          candidates.forEach((idx) => { corMap[idx] = pw.cor; });
+          candidates.forEach((idx) => { corMap[idx] = corResolvida; });
         }
       }
       ti++;

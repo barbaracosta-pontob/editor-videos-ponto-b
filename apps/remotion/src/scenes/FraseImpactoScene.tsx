@@ -27,7 +27,7 @@ export const FraseImpactoScene: React.FC<{ cena: FraseImpacto; corPrimaria?: str
   const translateY = interpolate(entrada, [0, 1], [30, 0]);
 
   const tokens = cena.texto.split(/(\s+)/);
-  const corMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? []);
+  const corMap = buildTokenCorMap(tokens, cena.palavras_destacadas ?? [], corPrimaria, corSecundaria);
 
   return (
     <AbsoluteFill>

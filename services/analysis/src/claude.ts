@@ -72,6 +72,116 @@ function stripAnalysisBlock(text: string): string {
   return stripped.slice(jsonStart);
 }
 
+// ── Cobertura do CTA até o fim da última fala ────────────────────────────────
+// Garante que o reel nunca encerre antes do mentor parar de falar.
+// Usa o end do último segmento do transcript como referência — não a duração
+// total do arquivo, que pode ter silêncio/respiro após a fala.
+//
+// Lógica: calcula a posição de início do CTA (soma das durações anteriores
+// + start_segundos da cena com vídeo que inicia o "relógio"), depois verifica
+// se startCTA + duracaoCTA cobre fimUltimaFala + buffer.
+
+type SegLike = { start: number; end: number };
+
+function corrigirCoberturaCta(scenes: ReelProps, transcript: object): ReelProps {
+  const t = transcript as Record<string, unknown>;
+  const segs = Array.isArray(t.segments) ? (t.segments as SegLike[]) : [];
+  if (!segs.length) return scenes;
+
+  const fimUltimaFala = segs[segs.length - 1].end;
+  const buffer = 0.5;
+
+  const scenesRaw = scenes as Record<string, unknown>;
+  const videoStart: number = typeof scenesRaw.video_start_segundos === "number"
+    ? scenesRaw.video_start_segundos as number
+    : 0;
+
+  const cenas = [...scenes.cenas];
+  const ultimaIdx = cenas.length - 1;
+  const ultima = cenas[ultimaIdx];
+  if (ultima.tipo !== "CTA") return scenes;
+
+  // Detecta início da fala do CTA: último segmento de fala que NÃO é encerramento puro
+  // ("Eu te vejo lá", "Até lá") — queremos o start do bloco do CTA completo
+  const falaCtaIdx = (() => {
+    // Procura o segmento mais cedo que contém palavras típicas de CTA
+    const ctaKeywords = ["clique", "coment", "garanta", "acesse", "inscreva", "aperte", "arrasta", "link"];
+    for (let i = 0; i < segs.length; i++) {
+      const text = segs[i].text.toLowerCase();
+      if (ctaKeywords.some(k => text.includes(k))) return i;
+    }
+    // fallback: dois últimos segmentos
+    return Math.max(0, segs.length - 2);
+  })();
+
+  const startFalaCta = segs[falaCtaIdx].start;
+  const fimNecessario = fimUltimaFala + buffer;
+
+  // pos_CTA atual = videoStart + soma das durações antes do CTA
+  const somaAnteCTA = cenas.slice(0, ultimaIdx).reduce((acc, c) => acc + c.duracao_segundos, 0);
+  const posCTAAtual = videoStart + somaAnteCTA;
+
+  // Gap entre onde o CTA começa e onde deveria começar
+  const gap = startFalaCta - posCTAAtual; // positivo = CTA começa cedo demais
+
+  const duracaoCtaCorreta = Math.max(4, Math.round((fimNecessario - startFalaCta) * 10) / 10);
+
+  if (Math.abs(gap) < 1 && Math.abs(ultima.duracao_segundos - duracaoCtaCorreta) < 1) {
+    return scenes; // tudo ok
+  }
+
+  console.log(`[corrigirCoberturaCta] startFalaCta=${startFalaCta.toFixed(2)}s posCTA=${posCTAAtual.toFixed(2)}s gap=${gap.toFixed(2)}s | CTA: ${ultima.duracao_segundos}s -> ${duracaoCtaCorreta}s`);
+
+  // Ajusta a última cena ANTES do CTA para preencher o gap
+  // (tipicamente ConviteEvento ou último overlay)
+  if (Math.abs(gap) >= 1 && ultimaIdx > 0) {
+    const penultimaIdx = ultimaIdx - 1;
+    const penultima = cenas[penultimaIdx];
+    const novaDuracaoPenultima = Math.max(1, Math.round((penultima.duracao_segundos + gap) * 10) / 10);
+    console.log(`[corrigirCoberturaCta] expandindo cena ${penultimaIdx + 1} (${penultima.tipo}): ${penultima.duracao_segundos}s -> ${novaDuracaoPenultima}s`);
+    cenas[penultimaIdx] = { ...penultima, duracao_segundos: novaDuracaoPenultima };
+  }
+
+  // Corrige duração do CTA
+  cenas[ultimaIdx] = { ...ultima, duracao_segundos: duracaoCtaCorreta };
+
+  const novaSoma = cenas.reduce((acc, c) => acc + c.duracao_segundos, 0);
+  return {
+    ...scenes,
+    cenas,
+    duracao_total_estimada: Math.round(novaSoma * 10) / 10,
+  };
+}
+
+// ── Defaults de SFX por tipo de cena ─────────────────────────────────────────
+// Aplicados programaticamente após validação Zod — não dependem do Claude decidir.
+
+const SFX_DEFAULT: Record<string, string> = {
+  Hook:               "sfx/whoosh.mp3",
+  FraseImpacto:       "sfx/transition.mp3",
+  ComparativoNumerico:"sfx/ding.mp3",
+  GraficoBarra:       "sfx/slide.mp3",
+  GraficoLinha:       "sfx/slide.mp3",
+  VideoCitacao:       "sfx/slide.mp3",
+  ListaPontos:        "sfx/pop.mp3",
+  MiniCaso:           "sfx/ding.mp3",
+  TransicaoTexto:     "sfx/transition.mp3",
+  ConviteEvento:      "sfx/slide.mp3",
+  CTA:                "sfx/transition.mp3",
+};
+
+function aplicarSfxDefaults(scenes: ReelProps): ReelProps {
+  return {
+    ...scenes,
+    cenas: scenes.cenas.map((cena) => {
+      if (cena.sfx) return cena; // já tem sfx — respeita a escolha
+      const path = SFX_DEFAULT[cena.tipo];
+      if (!path) return cena;
+      return { ...cena, sfx: { path, volume: 2 } } as typeof cena;
+    }),
+  };
+}
+
 export class AnalysisError extends Error {
   constructor(
     message: string,
@@ -185,10 +295,11 @@ export async function analyze(
         (acc, cena) => acc + cena.duracao_segundos,
         0,
       );
-      const scenesNormalizados = {
+      const scenesComSfx = aplicarSfxDefaults({
         ...validation.data,
         duracao_total_estimada: Math.round(somaReal * 10) / 10,
-      };
+      });
+      const scenesNormalizados = corrigirCoberturaCta(scenesComSfx, params.transcript);
 
       return {
         scenes: scenesNormalizados,
@@ -223,6 +334,7 @@ export type RefineParams = {
   transcript: object;
   videoOriginalPath: string;
   cenasAtuais: object;
+  brief?: string;
   especialista: {
     nome: string;
     cargo: string;
@@ -253,6 +365,7 @@ export async function refine(
     videoOriginalPath: params.videoOriginalPath,
     cenatAtual: params.cenasAtuais,
     especialista: params.especialista,
+    brief: params.brief,
   });
 
   const tokensAcumulados = { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 };
@@ -299,9 +412,23 @@ export async function refine(
 
     const validation = ReelPropsSchema.safeParse(parsed);
     if (validation.success) {
-      const somaReal = validation.data.cenas.reduce((acc, c) => acc + c.duracao_segundos, 0);
+      // Duração do player = janela de trim (end - start), não soma dos overlays.
+      // Se o agente preservou video_start/end do JSON de entrada, usamos esses valores.
+      // Caso contrário, cai na soma dos overlays como fallback.
+      const data = validation.data;
+      const trimStart = typeof (data as Record<string, unknown>).video_start_segundos === "number"
+        ? (data as Record<string, unknown>).video_start_segundos as number
+        : 0;
+      const trimEnd = typeof (data as Record<string, unknown>).video_end_segundos === "number"
+        ? (data as Record<string, unknown>).video_end_segundos as number
+        : null;
+      const somaReal = data.cenas.reduce((acc, c) => acc + c.duracao_segundos, 0);
+      const duracaoTotal = trimEnd !== null && trimEnd > trimStart
+        ? Math.round((trimEnd - trimStart) * 10) / 10
+        : Math.round(somaReal * 10) / 10;
+      const scenesComSfxR = aplicarSfxDefaults({ ...data, duracao_total_estimada: duracaoTotal });
       return {
-        scenes: { ...validation.data, duracao_total_estimada: Math.round(somaReal * 10) / 10 },
+        scenes: corrigirCoberturaCta(scenesComSfxR, params.transcript),
         metadata: { promptVersion: PROMPT_VERSION, model, tentativas: tentativa, tokens: tokensAcumulados },
       };
     }

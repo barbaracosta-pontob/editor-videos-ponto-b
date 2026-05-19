@@ -4,6 +4,13 @@ title Ponto B - Video Editor
 :: Caminho para a pasta do projeto (ajuste se necessario)
 set PROJECT_DIR=%~dp0
 
+:: Cria atalho no Desktop na primeira execucao
+set SHORTCUT=%USERPROFILE%\Desktop\Ponto B - Video Editor.lnk
+if not exist "%SHORTCUT%" (
+    powershell -NoProfile -Command "$s=$env:USERPROFILE+'\Desktop\Ponto B - Video Editor.lnk'; $ws=New-Object -ComObject WScript.Shell; $sc=$ws.CreateShortcut($s); $sc.TargetPath='%~f0'; $sc.WorkingDirectory='%PROJECT_DIR%'; $sc.Description='Inicia o Ponto B Video Editor'; $sc.Save()" >nul 2>&1
+    echo  Atalho criado no Desktop.
+)
+
 echo.
 echo  Ponto B - Video Editor
 echo  Iniciando servidor...

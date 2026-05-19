@@ -1,4 +1,5 @@
 import type { ReelProps, Cena } from "@pontob/schema";
+export type { ReelProps, Cena };
 
 export type JobStatus =
   | "transcribing"
@@ -20,6 +21,5 @@ export type Job = {
   error: string | null;
   createdAt: string;
   especialista_slug?: string;
+  videoDuration?: number | null;
 };
-
-export type { ReelProps, Cena };

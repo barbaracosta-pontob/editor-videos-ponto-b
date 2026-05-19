@@ -20,11 +20,10 @@ export const HookSchema = z.object({
   titulo: z.string().min(1).max(120),
   subtitulo: z.string().max(80).optional(),
   palavras_destacadas: z.array(WordHighlightSchema).max(3),
-  video_path: z.string().min(1),
-  start_segundos: z.number().min(0),
   sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(2).max(8),
   animacao_entrada: z.enum(["spring", "fade", "slide"]).optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type Hook = z.infer<typeof HookSchema>;
 
@@ -36,6 +35,7 @@ export const FraseImpactoSchema = z.object({
   sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(3).max(10),
   fundo: z.enum(["navy", "preto", "gradiente"]).optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type FraseImpacto = z.infer<typeof FraseImpactoSchema>;
 
@@ -54,19 +54,19 @@ export const ComparativoNumericoSchema = z.object({
   duracao_segundos: z.number().min(4).max(10),
   cor_destaque: z.string().optional(),  // hex livre, ex: "#E63946"
   sfx: SfxSchema.optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type ComparativoNumerico = z.infer<typeof ComparativoNumericoSchema>;
 
 export const VideoCitacaoSchema = z.object({
   tipo: z.literal("VideoCitacao"),
-  video_path: z.string().min(1),
-  start_segundos: z.number().min(0),
   duracao_segundos: z.number().min(5).max(18),
   nome_mentor: z.string().min(1),
   cargo_mentor: z.string().min(1),
   frases: z.array(z.string().min(1).max(80)).min(1).max(3),
   estilo_lower_third: z.enum(["barra_inferior", "card_lateral"]).optional(),
   sfx: SfxSchema.optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type VideoCitacao = z.infer<typeof VideoCitacaoSchema>;
 
@@ -78,18 +78,18 @@ export const ListaPontosSchema = z.object({
   sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(5).max(15),
   fundo: z.enum(["navy", "preto", "gradiente"]).optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type ListaPontos = z.infer<typeof ListaPontosSchema>;
 
 export const MiniCasoSchema = z.object({
   tipo: z.literal("MiniCaso"),
-  video_path: z.string().min(1),
-  start_segundos: z.number().min(0),
   duracao_segundos: z.number().min(5).max(15),
   resultado_texto: z.string().min(1).max(100),
   contexto_texto: z.string().max(80).optional(),
   palavras_destacadas: z.array(WordHighlightSchema).max(3).optional(),
   sfx: SfxSchema.optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type MiniCaso = z.infer<typeof MiniCasoSchema>;
 
@@ -99,6 +99,7 @@ export const TransicaoTextoSchema = z.object({
   sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(1).max(4),
   fundo: z.enum(["navy", "preto", "gradiente"]).optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type TransicaoTexto = z.infer<typeof TransicaoTextoSchema>;
 
@@ -107,10 +108,11 @@ export const CTASchema = z.object({
   texto_principal: z.string().min(1).max(80),
   texto_secundario: z.string().max(80).optional(),
   palavras_destacadas: z.array(WordHighlightSchema).max(3).optional(),
-  duracao_segundos: z.number().min(3).max(7),
+  duracao_segundos: z.number().min(3).max(15),
   mostrar_seta: z.boolean().optional(),
   cor_seta: z.string().optional(),  // hex livre, ex: "#F4C430"
   sfx: SfxSchema.optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type CTA = z.infer<typeof CTASchema>;
 
@@ -125,6 +127,7 @@ export const ConviteEventoSchema = z.object({
   logo_altura: z.number().min(24).max(1080).optional(),
   logo_posicao: z.enum(["topo", "centro", "rodape"]).optional(),
   sfx: SfxSchema.optional(),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type ConviteEvento = z.infer<typeof ConviteEventoSchema>;
 
@@ -144,6 +147,7 @@ export const GraficoLinhaSchema = z.object({
   cor_secundaria: z.string().optional(),
   sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(4).max(12),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type GraficoLinha = z.infer<typeof GraficoLinhaSchema>;
 export type GraficoLinhaPonto = z.infer<typeof GraficoLinhaPontoSchema>;
@@ -165,9 +169,21 @@ export const GraficoBarraSchema = z.object({
   cor_secundaria: z.string().optional(),
   sfx: SfxSchema.optional(),
   duracao_segundos: z.number().min(4).max(12),
+  inicio_overlay_segundos: z.number().min(0).optional(),
 });
 export type GraficoBarra = z.infer<typeof GraficoBarraSchema>;
 export type GraficoBarraPonto = z.infer<typeof GraficoBarraPontoSchema>;
+
+// VideoSimples: janela de "respiração" — só o vídeo do mentor sem overlay de texto.
+// Use quando o mentor está falando mas não há conteúdo que justifique um overlay.
+export const VideoSimplesSchema = z.object({
+  tipo: z.literal("VideoSimples"),
+  video_path: z.string().min(1),
+  start_segundos: z.number().min(0),
+  duracao_segundos: z.number().min(2).max(20),
+  sfx: SfxSchema.optional(),
+});
+export type VideoSimples = z.infer<typeof VideoSimplesSchema>;
 
 export const CenaSchema = z.discriminatedUnion("tipo", [
   HookSchema,
@@ -181,6 +197,7 @@ export const CenaSchema = z.discriminatedUnion("tipo", [
   ConviteEventoSchema,
   GraficoLinhaSchema,
   GraficoBarraSchema,
+  VideoSimplesSchema,
 ]);
 export type Cena = z.infer<typeof CenaSchema>;
 
@@ -194,6 +211,13 @@ export const ReelPropsSchema = z
   .object({
     duracao_total_estimada: z.number().min(40).max(120),
     video_original_path: z.string().optional(),
+    // Ponto exato (em segundos) onde o vídeo de fundo começa a tocar.
+    // Separado do início de cada cena/overlay — permite editar quando cada
+    // componente entra sem mover o vídeo subjacente.
+    video_start_segundos: z.number().min(0).optional(),
+    // Ponto de corte final do vídeo bruto (em segundos a partir do início do arquivo).
+    // Se definido, o vídeo de fundo para nesse ponto. Permite trim de cauda sem afetar os overlays.
+    video_end_segundos: z.number().min(0).optional(),
     cenas: z.array(CenaSchema).min(4).max(15),
     cor_primaria: z.string().optional(),
     cor_secundaria: z.string().optional(),

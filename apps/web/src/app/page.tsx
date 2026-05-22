@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ProcessingView } from "@/components/ProcessingView";
 import { EditorView } from "@/components/EditorView";
 import { ActionButton } from "@/components/ActionButton";
+import { useToast } from "@/components/Toast";
 import type { Job } from "@/types";
 import styles from "./page.module.css";
 
@@ -38,6 +39,7 @@ export default function Home() {
   const [especialistas, setEspecialistas] = useState<EspecialistaItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetch("/api/especialistas")
@@ -72,8 +74,10 @@ export default function Home() {
       setJob(data as Job);
       setScreen("editor");
     } catch (err) {
-      console.error(err);
-      alert(`Erro ao processar: ${err instanceof Error ? err.message : err}`);
+      // Erro completo (traceback do Python, etc.) só no console.
+      console.error("[handleSubmit] falha ao processar o vídeo:", err);
+      // Toast curto e legível para o usuário.
+      toast("Não foi possível processar o vídeo. Veja os detalhes no console (F12).");
       setScreen("upload");
     }
   }

@@ -43,16 +43,21 @@ Tudo passa pela interface web em `localhost:3000`. Cada job persiste em `jobs/<j
 | Ferramenta | Versão mínima | Windows | macOS | Linux |
 |---|---|---|---|---|
 | Node.js | 20+ | [nodejs.org](https://nodejs.org) | `brew install node` | `nvm install 20` |
-| Python | 3.11+ | [python.org](https://www.python.org) | `brew install python@3.11` | `sudo apt install python3.11` |
+| Python | **3.12** (não use 3.13+) | [python.org](https://www.python.org/downloads/release/python-3128/) | `brew install python@3.12` | `sudo apt install python3.12` |
 | FFmpeg | qualquer | `winget install Gyan.FFmpeg` | `brew install ffmpeg` | `sudo apt install ffmpeg` |
+| VC++ Redistributable | 2015–2022 | [vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe) | já incluso | já incluso |
+
+> **Windows — VC++ Redistributable.** O `onnxruntime` (usado pelo filtro VAD da transcrição) depende do runtime do Visual C++. Sem ele, a transcrição falha com `DLL load failed while importing onnxruntime_pybind11_state`. Em macOS/Linux não é necessário.
 
 Confirme que estão instalados:
 
 ```bash
 node --version   # deve mostrar v20+
-python --version # deve mostrar 3.11+
+python --version # deve mostrar 3.12.x
 ffmpeg -version
 ```
+
+> **Importante — use Python 3.12.** O `faster-whisper` depende do `ctranslate2`, e a versão estável para esta máquina (`ctranslate2 4.4.0`) só tem build para Python ≤ 3.12. Criar a `.venv` com Python 3.13 ou 3.14 força um `ctranslate2` mais novo que **crasha ao carregar o modelo** (erro `0xC0000005`, access violation, em CPUs sem AVX2). Confira em `services/transcription/.venv/pyvenv.cfg` se a venv aponta para o Python 3.12.
 
 #### Windows — liberar execução de scripts no PowerShell
 
@@ -111,10 +116,12 @@ WHISPER_DEVICE=auto             # auto detecta GPU se disponível
 
 A partir da raiz do projeto (`editor-reels-ponto-b/`):
 
+> Crie a venv **com Python 3.12 explicitamente**. Se o `python` padrão da máquina for 3.13/3.14, a transcrição vai quebrar (ver pré-requisitos).
+
 **Windows:**
 ```powershell
 cd services\transcription
-python -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\pip install -r requirements.txt
 cd ..\..
 ```
@@ -122,7 +129,7 @@ cd ..\..
 **macOS / Linux:**
 ```bash
 cd services/transcription
-python3 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cd ../..
 ```
@@ -275,7 +282,22 @@ O Claude pode gerar os tipos abaixo, em qualquer ordem e quantidade (4–15 cena
 → O modelo `large-v3` está sendo baixado (~3 GB). Normal só na primeira vez. Use `WHISPER_MODEL=small` no `.env` para testes rápidos.
 
 **Python não encontrado no macOS**
-→ Tente `python3` em vez de `python`. Se necessário: `brew install python@3.11`.
+→ Tente `python3` em vez de `python`. Se necessário: `brew install python@3.12`.
+
+**Transcrição falha com `Command failed` e código `3221225477` / `0xC0000005`**
+→ Access violation ao carregar o modelo. A `.venv` foi criada com Python 3.13/3.14, que puxa um `ctranslate2 ≥ 4.6` incompatível com a CPU. Recrie a venv com Python 3.12:
+```powershell
+cd services\transcription
+Remove-Item -Recurse -Force .venv
+py -3.12 -m venv .venv
+.\.venv\Scripts\pip install -r requirements.txt
+```
+
+**`DLL load failed while importing onnxruntime_pybind11_state` (Windows)**
+→ Falta o Visual C++ Redistributable, exigido pelo `onnxruntime` (filtro VAD). Instale o [vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe), reinicie o terminal e rode `npm run dev` de novo. Teste o import isolado com:
+```bash
+.\.venv\Scripts\python -c "import onnxruntime; print('onnx ok')"
+```
 
 ---
 

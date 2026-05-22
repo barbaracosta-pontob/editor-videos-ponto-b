@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppNav } from "@/components/AppNav";
 import { ActionButton } from "@/components/ActionButton";
+import { useToast } from "@/components/Toast";
 import styles from "./page.module.css";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -79,6 +80,7 @@ export default function EspecialistasPage() {
   const [excluindo, setExcluindo] = useState(false);
   const [logos, setLogos] = useState<{ filename: string; url: string }[]>([]);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const toast = useToast();
 
   async function carregarLogos(slug: string) {
     const res = await fetch(`/api/especialistas/${slug}/logos`);
@@ -234,9 +236,13 @@ export default function EspecialistasPage() {
         }
 
         await carregarLista();
-        alert(`Importação concluída: ${importados} importados, ${erros} com erro.`);
+        toast(
+          `Importação concluída: ${importados} importados, ${erros} com erro.`,
+          erros > 0 ? "info" : "success",
+        );
       } catch (err) {
-        alert(`Erro na importação: ${err instanceof Error ? err.message : String(err)}`);
+        console.error("[handleImport] falha na importação:", err);
+        toast("Erro na importação. Veja os detalhes no console (F12).");
       }
     };
     reader.readAsText(file);

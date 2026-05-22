@@ -12,6 +12,7 @@ import styles from "./page.module.css";
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 type Screen = "upload" | "processing" | "editor";
+type ProcessingStep = "transcribing" | "analyzing" | "ready";
 
 type EspecialistaItem = {
   slug: string;
@@ -38,6 +39,7 @@ export default function Home() {
   const [especialistaSlug, setEspecialistaSlug] = useState("generico");
   const [especialistas, setEspecialistas] = useState<EspecialistaItem[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [processingStep, setProcessingStep] = useState<ProcessingStep>("transcribing");
   const fileRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
@@ -66,17 +68,39 @@ export default function Home() {
     formData.append("video", file);
     formData.append("brief", brief);
     formData.append("especialista_slug", especialistaSlug);
+    setProcessingStep("transcribing");
     setScreen("processing");
     try {
       const res = await fetch("/api/jobs", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido");
-      setJob(data as Job);
-      setScreen("editor");
+      if (!res.body) throw new Error("Resposta sem body");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+        for (const event of events) {
+          const line = event.replace(/^data:\s*/m, "").trim();
+          if (!line) continue;
+          try {
+            const msg = JSON.parse(line);
+            if (msg.type === "step") {
+              setProcessingStep(msg.step as ProcessingStep);
+            } else if (msg.type === "done") {
+              setJob(msg.job as Job);
+              setScreen("editor");
+              return;
+            } else if (msg.type === "error") {
+              throw new Error(msg.message);
+            }
+          } catch { /* linha incompleta */ }
+        }
+      }
     } catch (err) {
-      // Erro completo (traceback do Python, etc.) só no console.
       console.error("[handleSubmit] falha ao processar o vídeo:", err);
-      // Toast curto e legível para o usuário.
       toast("Não foi possível processar o vídeo. Veja os detalhes no console (F12).");
       setScreen("upload");
     }
@@ -87,9 +111,10 @@ export default function Home() {
     setFile(null);
     setBrief("");
     setJob(null);
+    setProcessingStep("transcribing");
   }
 
-  if (screen === "processing") return <ProcessingView fileName={file?.name ?? ""} />;
+  if (screen === "processing") return <ProcessingView fileName={file?.name ?? ""} step={processingStep} />;
   if (screen === "editor" && job) return <EditorView job={job} onNew={handleNew} />;
 
   return (

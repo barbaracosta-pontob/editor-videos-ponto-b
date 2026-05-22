@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import styles from "./ProcessingView.module.css";
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -11,16 +10,12 @@ const STEPS = [
   { key: "ready",        label: "Pronto",      detail: "Cenas geradas — abrindo editor" },
 ];
 
+type ProcessingStep = "transcribing" | "analyzing" | "ready";
+
 // ── ProcessingView ────────────────────────────────────────────────────────────
 
-export function ProcessingView({ fileName }: { fileName: string }) {
-  const [step, setStep] = useState(0);
-
-  useEffect(() => {
-    const t1 = setTimeout(() => setStep(1), 1400);
-    const t2 = setTimeout(() => setStep(2), 3200);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+export function ProcessingView({ fileName, step }: { fileName: string; step: ProcessingStep }) {
+  const current = Math.max(0, STEPS.findIndex((s) => s.key === step));
 
   return (
     <main className={styles.root}>
@@ -41,8 +36,8 @@ export function ProcessingView({ fileName }: { fileName: string }) {
 
         <div className={styles.steps}>
           {STEPS.map((s, i) => {
-            const done = i < step;
-            const active = i === step;
+            const done = i < current;
+            const active = i === current;
             return (
               <div
                 key={s.key}
@@ -73,7 +68,7 @@ export function ProcessingView({ fileName }: { fileName: string }) {
         <div className={styles.progressTrack}>
           <div
             className={styles.progressBar}
-            style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
+            style={{ width: `${(current / (STEPS.length - 1)) * 100}%` }}
           />
         </div>
 

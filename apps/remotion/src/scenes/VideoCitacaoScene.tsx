@@ -9,7 +9,8 @@ import {
   staticFile,
 } from "remotion";
 import type { VideoCitacao } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor, useSafeZoneBottom } from "../hooks/useScaleFactor";
 
 export const VideoCitacaoScene: React.FC<{ cena: VideoCitacao; corPrimaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -18,6 +19,10 @@ export const VideoCitacaoScene: React.FC<{ cena: VideoCitacao; corPrimaria?: str
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
+  const safeBottom = useSafeZoneBottom();
 
   const accentColor = corPrimaria ?? colors.red;
   const fontFamily = resolveFontFamily(fonteFamilia);
@@ -49,7 +54,7 @@ export const VideoCitacaoScene: React.FC<{ cena: VideoCitacao; corPrimaria?: str
       <AbsoluteFill
         style={{
           justifyContent: "flex-end",
-          padding: `0 ${spacing.lg}px 420px`,
+          padding: `0 ${sp.lg}px ${safeBottom}px`,
         }}
       >
         <div
@@ -57,17 +62,17 @@ export const VideoCitacaoScene: React.FC<{ cena: VideoCitacao; corPrimaria?: str
             opacity,
             transform: `translateY(${translateY}px)`,
             borderLeft: `6px solid ${accentColor}`,
-            paddingLeft: spacing.md,
+            paddingLeft: sp.md,
           }}
         >
           {/* Nome e cargo do mentor */}
           <div
             style={{
               fontFamily,
-              fontWeight: typography.weightTitle,
-              fontSize: typography.sizeBody,
+              fontWeight: typo.weightTitle,
+              fontSize: typo.sizeBody,
               color: colors.white,
-              letterSpacing: typography.trackingNormal,
+              letterSpacing: typo.trackingNormal,
             }}
           >
             {cena.nome_mentor}
@@ -75,10 +80,10 @@ export const VideoCitacaoScene: React.FC<{ cena: VideoCitacao; corPrimaria?: str
           <div
             style={{
               fontFamily,
-              fontWeight: typography.weightCaption,
-              fontSize: typography.sizeCaption,
+              fontWeight: typo.weightCaption,
+              fontSize: typo.sizeCaption,
               color: accentColor,
-              marginBottom: spacing.md,
+              marginBottom: sp.md,
               opacity: 0.9,
             }}
           >
@@ -86,7 +91,7 @@ export const VideoCitacaoScene: React.FC<{ cena: VideoCitacao; corPrimaria?: str
           </div>
 
           {/* Frases-chave com entrada staggered */}
-          <div style={{ display: "flex", flexDirection: "column", gap: spacing.xs }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: sp.xs }}>
             {cena.frases.map((frase, i) => {
               const fraseDelay = i * 8;
               const fraseEntrada = spring({
@@ -104,10 +109,10 @@ export const VideoCitacaoScene: React.FC<{ cena: VideoCitacao; corPrimaria?: str
                     opacity: fraseOpacity,
                     transform: `translateX(${fraseX}px)`,
                     fontFamily,
-                    fontWeight: typography.weightBody,
-                    fontSize: typography.sizeSubtitle,
+                    fontWeight: typo.weightBody,
+                    fontSize: typo.sizeSubtitle,
                     color: colors.white,
-                    lineHeight: typography.lineHeightBody,
+                    lineHeight: typo.lineHeightBody,
                   }}
                 >
                   {frase}

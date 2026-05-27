@@ -9,7 +9,8 @@ import {
   staticFile,
 } from "remotion";
 import type { ListaPontos } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor, useSafeZoneBottom } from "../hooks/useScaleFactor";
 
 export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -18,6 +19,10 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
+  const safeBottom = useSafeZoneBottom();
 
   const accentColor = corPrimaria ?? colors.red;
   const fontFamily = resolveFontFamily(fonteFamilia);
@@ -51,7 +56,7 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
         style={{
           justifyContent: "flex-end",
           alignItems: "flex-start",
-          padding: `0 ${spacing.lg}px 420px`,
+          padding: `0 ${sp.lg}px ${safeBottom}px`,
           flexDirection: "column",
         }}
       >
@@ -64,7 +69,7 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
             height: 4,
             backgroundColor: accentColor,
             borderRadius: 2,
-            marginBottom: spacing.sm,
+            marginBottom: sp.sm,
           }} />
         ) : null}
 
@@ -75,14 +80,14 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
               opacity: tituloOpacity,
               transform: `translateY(${tituloY}px)`,
               fontFamily,
-              fontWeight: typography.weightHero,
-              fontSize: typography.sizeTitle,
+              fontWeight: typo.weightHero,
+              fontSize: typo.sizeTitle,
               color: colors.white,
-              letterSpacing: typography.trackingTight,
+              letterSpacing: typo.trackingTight,
               textTransform: "uppercase",
-              marginBottom: spacing.lg,
+              marginBottom: sp.lg,
               textShadow: "0 3px 20px rgba(0,0,0,0.85)",
-              lineHeight: typography.lineHeightTight,
+              lineHeight: typo.lineHeightTight,
             }}
           >
             {cena.titulo}
@@ -90,7 +95,7 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
         ) : null}
 
         {/* Itens da lista */}
-        <div style={{ display: "flex", flexDirection: "column", gap: spacing.md, width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: sp.md, width: "100%" }}>
           {cena.pontos.map((ponto, i) => {
             const delay = i * ITEM_DELAY;
             const pontoEntrada = spring({
@@ -111,10 +116,10 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: spacing.md,
+                  gap: sp.md,
                   background: "rgba(255,255,255,0.06)",
                   borderRadius: 16,
-                  padding: `${spacing.sm}px ${spacing.md}px`,
+                  padding: `${sp.sm}px ${sp.md}px`,
                   borderLeft: `4px solid ${accentColor}`,
                 }}
               >
@@ -122,10 +127,10 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
                   <div
                     style={{
                       fontFamily,
-                      fontWeight: typography.weightHero,
-                      fontSize: 80,
+                      fontWeight: typo.weightHero,
+                      fontSize: Math.round(80 * scale),
                       color: accentColor,
-                      minWidth: 68,
+                      minWidth: Math.round(68 * scale),
                       lineHeight: 1,
                       textAlign: "center",
                       flexShrink: 0,
@@ -147,10 +152,10 @@ export const ListaPontosScene: React.FC<{ cena: ListaPontos; corPrimaria?: strin
                 <div
                   style={{
                     fontFamily,
-                    fontWeight: typography.weightBody,
-                    fontSize: typography.sizeBody,
+                    fontWeight: typo.weightBody,
+                    fontSize: typo.sizeBody,
                     color: colors.white,
-                    lineHeight: typography.lineHeightBody,
+                    lineHeight: typo.lineHeightBody,
                   }}
                 >
                   {ponto}

@@ -128,3 +128,41 @@ export const buildTokenCorMap = (
   }
   return corMap;
 };
+
+/**
+ * Hook que retorna tokens de tipografia escalados pelo aspect ratio atual.
+ * Usar em vez de `typography` diretamente dentro de componentes Remotion.
+ */
+export function useTypography(scale: number) {
+  return {
+    fontFamily: typography.fontFamily,
+    weightHero: typography.weightHero,
+    weightTitle: typography.weightTitle,
+    weightBody: typography.weightBody,
+    weightCaption: typography.weightCaption,
+    sizeHero:     Math.round(typography.sizeHero     * scale),
+    sizeTitle:    Math.round(typography.sizeTitle    * scale),
+    sizeSubtitle: Math.round(typography.sizeSubtitle * scale),
+    sizeBody:     Math.round(typography.sizeBody     * scale),
+    sizeCaption:  Math.round(typography.sizeCaption  * scale),
+    trackingTight:    typography.trackingTight,
+    trackingNormal:   typography.trackingNormal,
+    trackingWide:     typography.trackingWide,
+    lineHeightTight:  typography.lineHeightTight,
+    lineHeightBody:   typography.lineHeightBody,
+  };
+}
+
+/**
+ * Hook que retorna tokens de espaçamento escalados pelo aspect ratio atual.
+ */
+export function useSpacing(scale: number) {
+  return {
+    xs:  Math.round(spacing.xs  * scale),
+    sm:  Math.round(spacing.sm  * scale),
+    md:  Math.round(spacing.md  * scale),
+    lg:  Math.round(spacing.lg  * scale),
+    xl:  Math.round(spacing.xl  * scale),
+    xxl: Math.round(spacing.xxl * scale),
+  };
+}

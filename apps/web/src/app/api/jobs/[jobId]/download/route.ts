@@ -1,6 +1,7 @@
 /**
- * GET /api/jobs/[jobId]/download
- * Serve o reel.mp4 gerado para download no browser.
+ * GET /api/jobs/[jobId]/download?format=reels|wide|square
+ * Serve o mp4 gerado para download no browser.
+ * Se format nao for passado, tenta reel_reels.mp4, depois reel.mp4 (legado).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,22 +14,44 @@ const JOBS_DIR = process.env.JOBS_DIR
   ? path.resolve(REPO_ROOT, process.env.JOBS_DIR)
   : path.join(REPO_ROOT, "jobs");
 
+const VALID_FORMATS = ["reels", "wide", "square"] as const;
+type FormatKey = typeof VALID_FORMATS[number];
+
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { jobId: string } }
 ) {
   const { jobId } = params;
-  const outputPath = path.join(JOBS_DIR, jobId, "out", "reel.mp4");
+  const outDir = path.join(JOBS_DIR, jobId, "out");
 
-  if (!existsSync(outputPath)) {
-    return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 404 });
+  const formatParam = req.nextUrl.searchParams.get("format") as FormatKey | null;
+
+  // Candidatos em ordem de prioridade
+  const candidates: { file: string; name: string }[] = [];
+
+  if (formatParam && VALID_FORMATS.includes(formatParam)) {
+    candidates.push({ file: `reel_${formatParam}.mp4`, name: `reel_${formatParam}.mp4` });
   }
 
-  const buffer = await readFile(outputPath);
+  // Fallbacks para compatibilidade com renders antigos
+  candidates.push(
+    { file: "reel_reels.mp4", name: "reel_reels.mp4" },
+    { file: "reel.mp4",       name: "reel.mp4" },
+  );
+
+  const found = candidates.find((c) => existsSync(path.join(outDir, c.file)));
+
+  if (!found) {
+    return NextResponse.json({ error: "Arquivo nao encontrado" }, { status: 404 });
+  }
+
+  const filePath = path.join(outDir, found.file);
+  const buffer = await readFile(filePath);
+
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "video/mp4",
-      "Content-Disposition": `attachment; filename="reel_${jobId}.mp4"`,
+      "Content-Disposition": `attachment; filename="${found.name}"`,
       "Content-Length": String(buffer.length),
     },
   });

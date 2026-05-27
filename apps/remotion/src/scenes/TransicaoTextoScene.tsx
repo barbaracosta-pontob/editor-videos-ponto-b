@@ -9,17 +9,21 @@ import {
   staticFile,
 } from "remotion";
 import type { TransicaoTexto } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor } from "../hooks/useScaleFactor";
 
 export const TransicaoTextoScene: React.FC<{ cena: TransicaoTexto; fonteFamilia?: string }> = ({ cena, fonteFamilia }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
 
   const fontFamily = resolveFontFamily(fonteFamilia);
 
   const entrada = spring({ frame, fps, config: { damping: 18, stiffness: 120 } });
   const opacity = interpolate(entrada, [0, 1], [0, 1]);
-  const scale = interpolate(entrada, [0, 1], [0.96, 1]);
+  const scaleAnim = interpolate(entrada, [0, 1], [0.96, 1]);
 
   return (
     <AbsoluteFill>
@@ -43,20 +47,20 @@ export const TransicaoTextoScene: React.FC<{ cena: TransicaoTexto; fonteFamilia?
         style={{
           justifyContent: "flex-end",
           alignItems: "center",
-          padding: `0 ${spacing.lg}px ${spacing.xxl}px`,
+          padding: `0 ${sp.lg}px ${sp.xxl}px`,
         }}
       >
       <div
         style={{
           opacity,
-          transform: `scale(${scale})`,
+          transform: `scale(${scaleAnim})`,
           fontFamily,
-          fontWeight: typography.weightTitle,
-          fontSize: typography.sizeSubtitle,
+          fontWeight: typo.weightTitle,
+          fontSize: typo.sizeSubtitle,
           color: colors.whiteSoft,
           textAlign: "center",
-          letterSpacing: typography.trackingNormal,
-          lineHeight: typography.lineHeightBody,
+          letterSpacing: typo.trackingNormal,
+          lineHeight: typo.lineHeightBody,
           textShadow: "0 2px 16px rgba(0,0,0,0.9)",
         }}
       >

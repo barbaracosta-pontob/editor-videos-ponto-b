@@ -9,19 +9,20 @@ import {
   staticFile,
 } from "remotion";
 import type { FraseImpacto } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, buildTokenCorMap, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor, useSafeZoneBottom } from "../hooks/useScaleFactor";
 
 export const FraseImpactoScene: React.FC<{ cena: FraseImpacto; corPrimaria?: string; corSecundaria?: string; fonteFamilia?: string }> = ({
-  cena,
-  corPrimaria,
-  corSecundaria,
-  fonteFamilia,
+  cena, corPrimaria, corSecundaria, fonteFamilia,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
+  const safeBottom = useSafeZoneBottom();
 
   const fontFamily = resolveFontFamily(fonteFamilia);
-
   const entrada = spring({ frame, fps, config: { damping: 14, stiffness: 80 } });
   const opacity = interpolate(entrada, [0, 1], [0, 1]);
   const translateY = interpolate(entrada, [0, 1], [30, 0]);
@@ -49,7 +50,7 @@ export const FraseImpactoScene: React.FC<{ cena: FraseImpacto; corPrimaria?: str
         style={{
           justifyContent: "flex-end",
           alignItems: cena.alinhamento === "esquerda" ? "flex-start" : "center",
-          padding: `0 ${spacing.lg}px 420px`,
+          padding: `0 ${sp.lg}px ${safeBottom}px`,
         }}
       >
         <div
@@ -57,20 +58,18 @@ export const FraseImpactoScene: React.FC<{ cena: FraseImpacto; corPrimaria?: str
             opacity,
             transform: `translateY(${translateY}px)`,
             fontFamily,
-            fontWeight: typography.weightTitle,
-            fontSize: typography.sizeTitle,
-            lineHeight: typography.lineHeightBody,
-            letterSpacing: typography.trackingTight,
+            fontWeight: typo.weightTitle,
+            fontSize: typo.sizeTitle,
+            lineHeight: typo.lineHeightBody,
+            letterSpacing: typo.trackingTight,
             color: colors.white,
             textAlign: cena.alinhamento === "esquerda" ? "left" : "center",
-            maxWidth: 900,
+            maxWidth: Math.round(900 * scale),
             textShadow: "0 3px 20px rgba(0,0,0,0.85)",
           }}
         >
           {tokens.map((token, i) => (
-            <span key={i} style={{ color: corMap[i] ?? colors.white }}>
-              {token}
-            </span>
+            <span key={i} style={{ color: corMap[i] ?? colors.white }}>{token}</span>
           ))}
         </div>
       </AbsoluteFill>

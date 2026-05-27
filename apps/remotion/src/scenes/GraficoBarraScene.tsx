@@ -9,7 +9,8 @@ import {
   staticFile,
 } from "remotion";
 import type { GraficoBarra } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor } from "../hooks/useScaleFactor";
 
 export const GraficoBarraScene: React.FC<{
   cena: GraficoBarra;
@@ -18,7 +19,10 @@ export const GraficoBarraScene: React.FC<{
   fonteFamilia?: string;
 }> = ({ cena, corPrimaria, corSecundaria, fonteFamilia }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
   const fontFamily = resolveFontFamily(fonteFamilia);
   const accentColor = cena.cor_primaria ?? corPrimaria ?? colors.red;
   const accentSecundaria = cena.cor_secundaria ?? corSecundaria ?? colors.yellow;
@@ -30,8 +34,8 @@ export const GraficoBarraScene: React.FC<{
   const barras = cena.barras;
   const maxVal = Math.max(...barras.map((b) => b.valor));
 
-  const W = 952;
-  const H = 480;
+  const W = Math.round(width * 0.88);
+  const H = Math.round(W * 0.504);
   const PAD_TOP = 32;
   const PAD_BOTTOM = 72;
   const innerH = H - PAD_TOP - PAD_BOTTOM;
@@ -66,16 +70,16 @@ export const GraficoBarraScene: React.FC<{
       ) : null}
 
       <AbsoluteFill style={{ backgroundColor: "rgba(5, 8, 20, 0.90)" }} />
-      <AbsoluteFill style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: `0 ${spacing.lg}px`, gap: spacing.md }}>
-        <div style={{ opacity, transform: `translateY(${translateY}px)`, fontFamily, fontWeight: typography.weightTitle, fontSize: typography.sizeSubtitle, color: colors.white, letterSpacing: typography.trackingTight, textAlign: "center", lineHeight: typography.lineHeightTight }}>
+      <AbsoluteFill style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: `0 ${sp.lg}px`, gap: sp.md }}>
+        <div style={{ opacity, transform: `translateY(${translateY}px)`, fontFamily, fontWeight: typo.weightTitle, fontSize: typo.sizeSubtitle, color: colors.white, letterSpacing: typo.trackingTight, textAlign: "center", lineHeight: typo.lineHeightTight }}>
           {cena.titulo}
         </div>
         {cena.subtitulo ? (
-          <div style={{ opacity: opacity * 0.7, fontFamily, fontWeight: typography.weightCaption, fontSize: typography.sizeCaption, color: colors.textMuted, textAlign: "center" }}>
+          <div style={{ opacity: opacity * 0.7, fontFamily, fontWeight: typo.weightCaption, fontSize: typo.sizeCaption, color: colors.textMuted, textAlign: "center" }}>
             {cena.subtitulo}
           </div>
         ) : null}
-        <div style={{ opacity, width: W, flexShrink: 0 }}>
+        <div style={{ opacity, width: W, maxWidth: "100%", flexShrink: 0 }}>
           <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
             <line x1={0} y1={PAD_TOP + innerH} x2={W} y2={PAD_TOP + innerH} stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
             {barras.map((barra, i) => {
@@ -95,7 +99,7 @@ export const GraficoBarraScene: React.FC<{
                       y={y - 14}
                       textAnchor="middle"
                       fill={isDestaque ? accentSecundaria : colors.white}
-                      fontSize={isDestaque ? 30 : 24}
+                      fontSize={Math.round((isDestaque ? 30 : 24) * scale)}
                       fontWeight={isDestaque ? 700 : 500}
                       fontFamily={fontFamily}
                       opacity={interpolate(progress, [0.7, 1], [0, 1])}
@@ -108,7 +112,7 @@ export const GraficoBarraScene: React.FC<{
                     y={PAD_TOP + innerH + 44}
                     textAnchor="middle"
                     fill={isDestaque ? accentSecundaria : "rgba(255,255,255,0.55)"}
-                    fontSize={20}
+                    fontSize={Math.round(20 * scale)}
                     fontWeight={isDestaque ? 600 : 400}
                     fontFamily={fontFamily}
                   >

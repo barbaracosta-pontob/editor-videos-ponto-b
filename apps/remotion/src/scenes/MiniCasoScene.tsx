@@ -9,7 +9,8 @@ import {
   staticFile,
 } from "remotion";
 import type { MiniCaso } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, buildTokenCorMap, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor } from "../hooks/useScaleFactor";
 
 export const MiniCasoScene: React.FC<{
   cena: MiniCaso;
@@ -19,6 +20,9 @@ export const MiniCasoScene: React.FC<{
 }> = ({ cena, corPrimaria, corSecundaria, fonteFamilia }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
 
   const accentColor = corPrimaria ?? colors.red;
   const fontFamily = resolveFontFamily(fonteFamilia);
@@ -48,7 +52,7 @@ export const MiniCasoScene: React.FC<{
         style={{
           justifyContent: "flex-start",
           alignItems: "flex-start",
-          padding: `${spacing.xl}px ${spacing.lg}px 0`,
+          padding: `${sp.xl}px ${sp.lg}px 0`,
         }}
       >
         <div
@@ -58,20 +62,20 @@ export const MiniCasoScene: React.FC<{
             backgroundColor: "rgba(0,0,0,0.70)",
             border: `3px solid ${accentColor}`,
             borderRadius: 20,
-            padding: `${spacing.md}px ${spacing.lg}px`,
-            maxWidth: 900,
+            padding: `${sp.md}px ${sp.lg}px`,
+            maxWidth: Math.round(900 * scale),
           }}
         >
           {cena.contexto_texto ? (
             <div
               style={{
                 fontFamily,
-                fontWeight: typography.weightCaption,
-                fontSize: typography.sizeCaption,
+                fontWeight: typo.weightCaption,
+                fontSize: typo.sizeCaption,
                 color: colors.textMuted,
                 textTransform: "uppercase",
-                letterSpacing: typography.trackingWide,
-                marginBottom: spacing.xs,
+                letterSpacing: typo.trackingWide,
+                marginBottom: sp.xs,
               }}
             >
               {cena.contexto_texto}
@@ -80,9 +84,9 @@ export const MiniCasoScene: React.FC<{
           <div
             style={{
               fontFamily,
-              fontWeight: typography.weightTitle,
-              fontSize: typography.sizeSubtitle,
-              lineHeight: typography.lineHeightBody,
+              fontWeight: typo.weightTitle,
+              fontSize: typo.sizeSubtitle,
+              lineHeight: typo.lineHeightBody,
               color: colors.white,
             }}
           >

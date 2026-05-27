@@ -9,7 +9,8 @@ import {
   staticFile,
 } from "remotion";
 import type { GraficoLinha } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor } from "../hooks/useScaleFactor";
 
 export const GraficoLinhaScene: React.FC<{
   cena: GraficoLinha;
@@ -18,7 +19,10 @@ export const GraficoLinhaScene: React.FC<{
   fonteFamilia?: string;
 }> = ({ cena, corPrimaria, corSecundaria, fonteFamilia }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
 
   // Override por cena tem prioridade sobre o do especialista
   const accentColor = cena.cor_primaria ?? corPrimaria ?? colors.red;
@@ -42,12 +46,12 @@ export const GraficoLinhaScene: React.FC<{
   const range = maxVal - minVal || 1;
 
   // Dimensões do gráfico (em px, na resolução 1080×1920)
-  const W = 960;
-  const H = 480;
-  const PAD_LEFT = 80;
-  const PAD_RIGHT = 40;
+  const W = Math.round(width * 0.889);
+  const H = Math.round(W * 0.5);
+  const PAD_LEFT = Math.round(80 * scale);
+  const PAD_RIGHT = Math.round(40 * scale);
   const PAD_TOP = 40;
-  const PAD_BOTTOM = 60;
+  const PAD_BOTTOM = Math.round(60 * scale);
   const innerW = W - PAD_LEFT - PAD_RIGHT;
   const innerH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -119,8 +123,8 @@ export const GraficoLinhaScene: React.FC<{
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          padding: `${spacing.xl}px ${spacing.lg}px`,
-          gap: spacing.md,
+          padding: `${sp.xl}px ${sp.lg}px`,
+          gap: sp.md,
         }}
       >
         {/* Título */}
@@ -129,12 +133,12 @@ export const GraficoLinhaScene: React.FC<{
             opacity,
             transform: `translateY(${translateY}px)`,
             fontFamily,
-            fontWeight: typography.weightTitle,
-            fontSize: typography.sizeSubtitle,
+            fontWeight: typo.weightTitle,
+            fontSize: typo.sizeSubtitle,
             color: colors.white,
-            letterSpacing: typography.trackingTight,
+            letterSpacing: typo.trackingTight,
             textAlign: "center",
-            lineHeight: typography.lineHeightTight,
+            lineHeight: typo.lineHeightTight,
           }}
         >
           {cena.titulo}
@@ -145,8 +149,8 @@ export const GraficoLinhaScene: React.FC<{
             style={{
               opacity: opacity * 0.7,
               fontFamily,
-              fontWeight: typography.weightCaption,
-              fontSize: typography.sizeCaption,
+              fontWeight: typo.weightCaption,
+              fontSize: typo.sizeCaption,
               color: colors.textMuted,
               textAlign: "center",
             }}
@@ -156,7 +160,7 @@ export const GraficoLinhaScene: React.FC<{
         ) : null}
 
         {/* Gráfico SVG */}
-        <div style={{ opacity, width: W, flexShrink: 0 }}>
+        <div style={{ opacity, width: W, maxWidth: "100%", flexShrink: 0 }}>
           <svg
             width={W}
             height={H}
@@ -179,7 +183,7 @@ export const GraficoLinhaScene: React.FC<{
                   y={g.y + 6}
                   textAnchor="end"
                   fill="rgba(255,255,255,0.35)"
-                  fontSize={24}
+                  fontSize={Math.round(24 * scale)}
                   fontFamily={fontFamily}
                 >
                   {formatVal(g.valor)}
@@ -221,7 +225,7 @@ export const GraficoLinhaScene: React.FC<{
                     y={PAD_TOP + innerH + 40}
                     textAnchor="middle"
                     fill="rgba(255,255,255,0.45)"
-                    fontSize={22}
+                    fontSize={Math.round(22 * scale)}
                     fontFamily={fontFamily}
                   >
                     {c.rotulo}
@@ -237,7 +241,7 @@ export const GraficoLinhaScene: React.FC<{
                         y={c.y - 18}
                         textAnchor="middle"
                         fill={accentColorSecundaria}
-                        fontSize={28}
+                        fontSize={Math.round(28 * scale)}
                         fontWeight={700}
                         fontFamily={fontFamily}
                       >

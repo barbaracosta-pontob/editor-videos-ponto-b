@@ -9,9 +9,10 @@ import {
   staticFile,
 } from "remotion";
 import type { ComparativoNumerico } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor } from "../hooks/useScaleFactor";
 
-function valorFontSize(valor: string): number {
+function valorFontSizeBase(valor: string): number {
   const len = String(valor).length;
   if (len <= 4)  return 120;
   if (len <= 7)  return 96;
@@ -28,6 +29,9 @@ export const ComparativoNumericoScene: React.FC<{
 }> = ({ cena, corPrimaria, corSecundaria, fonteFamilia }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
 
   const accentColor = cena.cor_destaque ?? corPrimaria ?? colors.red;
   const fontFamily = resolveFontFamily(fonteFamilia);
@@ -56,9 +60,9 @@ export const ComparativoNumericoScene: React.FC<{
         style={{
           justifyContent: "flex-end",
           alignItems: "center",
-          padding: `0 ${spacing.lg}px ${spacing.xxl}px`,
+          padding: `0 ${sp.lg}px ${sp.xxl}px`,
           flexDirection: "column",
-          gap: spacing.lg,
+          gap: sp.lg,
         }}
       >
         <div
@@ -66,12 +70,12 @@ export const ComparativoNumericoScene: React.FC<{
             opacity,
             transform: `translateY(${translateY}px)`,
             fontFamily,
-            fontWeight: typography.weightBody,
-            fontSize: typography.sizeCaption,
+            fontWeight: typo.weightBody,
+            fontSize: typo.sizeCaption,
             color: colors.textMuted,
             textAlign: "center",
             textTransform: "uppercase",
-            letterSpacing: typography.trackingWide,
+            letterSpacing: typo.trackingWide,
           }}
         >
           {cena.metrica_nome}
@@ -83,7 +87,7 @@ export const ComparativoNumericoScene: React.FC<{
             flexDirection: "row",
             justifyContent: "center",
             alignItems: "stretch",
-            gap: spacing.md,
+            gap: sp.md,
             width: "100%",
           }}
         >
@@ -105,7 +109,7 @@ export const ComparativoNumericoScene: React.FC<{
                   transform: `translateY(${ladoY}px)`,
                   flex: 1,
                   minWidth: 0,
-                  maxWidth: 380,
+                  maxWidth: Math.round(380 * scale),
                   backgroundColor: lado.eh_destaque
                     ? "rgba(255,255,255,0.08)"
                     : "rgba(255,255,255,0.04)",
@@ -113,22 +117,22 @@ export const ComparativoNumericoScene: React.FC<{
                     ? `3px solid ${accentColor}`
                     : "2px solid rgba(255,255,255,0.1)",
                   borderRadius: 24,
-                  padding: `${spacing.lg}px ${spacing.md}px`,
+                  padding: `${sp.lg}px ${sp.md}px`,
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: spacing.sm,
+                  gap: sp.sm,
                   overflow: "hidden",
                 }}
               >
                 <div
                   style={{
                     fontFamily,
-                    fontWeight: typography.weightHero,
-                    fontSize: valorFontSize(String(lado.valor)),
+                    fontWeight: typo.weightHero,
+                    fontSize: Math.round(valorFontSizeBase(String(lado.valor)) * scale),
                     lineHeight: 1.05,
                     color: lado.eh_destaque ? accentColor : colors.whiteSoft,
-                    letterSpacing: typography.trackingTight,
+                    letterSpacing: typo.trackingTight,
                     textAlign: "center",
                     wordBreak: "break-word",
                     overflowWrap: "break-word",
@@ -140,11 +144,11 @@ export const ComparativoNumericoScene: React.FC<{
                 <div
                   style={{
                     fontFamily,
-                    fontWeight: typography.weightBody,
-                    fontSize: typography.sizeCaption,
+                    fontWeight: typo.weightBody,
+                    fontSize: typo.sizeCaption,
                     color: colors.textMuted,
                     textTransform: "uppercase",
-                    letterSpacing: typography.trackingWide,
+                    letterSpacing: typo.trackingWide,
                     textAlign: "center",
                     wordBreak: "break-word",
                     width: "100%",
@@ -161,8 +165,8 @@ export const ComparativoNumericoScene: React.FC<{
           style={{
             opacity: opacity * 0.6,
             fontFamily,
-            fontWeight: typography.weightCaption,
-            fontSize: typography.sizeCaption,
+            fontWeight: typo.weightCaption,
+            fontSize: typo.sizeCaption,
             color: colors.textMuted,
             textAlign: "center",
           }}

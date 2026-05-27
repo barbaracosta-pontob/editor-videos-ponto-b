@@ -70,8 +70,11 @@ export function EditorView({ job, onNew }: EditorViewProps) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(0);
   const [rendering, setRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState<RenderProgress | null>(null);
-  const [outputPath, setOutputPath] = useState<string | null>(null);
+  const [renderFormatLabel, setRenderFormatLabel] = useState<string>("");
+  const [outputs, setOutputs] = useState<Record<string, string> | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [formatosRender, setFormatosRender] = useState<string[]>(["reels"]);
+  const [showRenderModal, setShowRenderModal] = useState(false);
   const previousOutput = job.outputPath;
 
   const [refining, setRefining] = useState(false);
@@ -176,7 +179,11 @@ export function EditorView({ job, onNew }: EditorViewProps) {
         throw new Error(errMsg);
       }
 
-      const res = await fetch(`/api/jobs/${job.id}/render`, { method: "POST" });
+      const res = await fetch(`/api/jobs/${job.id}/render`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formatos: formatosRender }),
+      });
       if (!res.ok || !res.body) {
         let errMsg = `Erro na renderizacao (${res.status})`;
         try { const d = await res.json(); errMsg = d.error ?? errMsg; } catch { /* noop */ }
@@ -198,8 +205,10 @@ export function EditorView({ job, onNew }: EditorViewProps) {
           if (!line) continue;
           try {
             const msg = JSON.parse(line);
-            if (msg.type === "progress") setRenderProgress({ frames: msg.frames, total: msg.total, eta: msg.eta });
-            else if (msg.type === "done") { setOutputPath(msg.outputPath); setRendering(false); return; }
+            if (msg.type === "format_start") setRenderFormatLabel(msg.label);
+            else if (msg.type === "progress") setRenderProgress({ frames: msg.frames, total: msg.total, eta: msg.eta });
+            else if (msg.type === "format_done") setRenderProgress(null);
+            else if (msg.type === "done") { setOutputs(msg.outputs ?? { reels: msg.outputPath }); setRendering(false); return; }
             else if (msg.type === "error") throw new Error(msg.message);
           } catch { /* linha incompleta */ }
         }
@@ -254,9 +263,9 @@ export function EditorView({ job, onNew }: EditorViewProps) {
     }
   }
 
-  if (rendering) return <RenderingScreen progress={renderProgress} />;
+  if (rendering) return <RenderingScreen progress={renderProgress} formatLabel={renderFormatLabel} />;
   if (refining) return <RefiningScreen />;
-  if (outputPath) return <SuccessScreen jobId={job.id} outputPath={outputPath} onNew={onNew} />;
+  if (outputs) return <SuccessScreen jobId={job.id} outputs={outputs} onNew={onNew} />;
 
   const selected = selectedIdx !== null ? scenes[selectedIdx] : null;
 
@@ -272,12 +281,61 @@ export function EditorView({ job, onNew }: EditorViewProps) {
           </a>
         )}
         <ActionButton onClick={() => { setRefineBrief(""); setShowRefineModal(true); }} icon={"✦"}>Refinar com IA</ActionButton>
-        <ActionButton onClick={handleRender} icon={"▶"}>Renderizar</ActionButton>
+        <ActionButton onClick={() => setShowRenderModal(true)} icon={"▶"}>Renderizar</ActionButton>
       </AppNav>
 
       {renderError && <div className={styles.errorBanner}>&#9888; {renderError}</div>}
       {refineError && <div className={styles.errorBanner}>&#9888; {refineError}</div>}
       {refineToast && <div className={styles.refineToast}>{refineToast}</div>}
+
+      {showRenderModal && (
+        <div className={styles.refineModalOverlay} onClick={() => setShowRenderModal(false)}>
+          <div className={styles.refineModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.refineModalTitle}>&#9654; Renderizar</div>
+            <p className={styles.refineModalDesc}>
+              Selecione os formatos que deseja exportar. Cada formato e renderizado em sequencia.
+            </p>
+            <div className={styles.formatGroup}>
+              {([
+                { key: "reels",  label: "9:16", desc: "Stories / Reels" },
+                { key: "wide",   label: "16:9", desc: "YouTube / Wide" },
+                { key: "square", label: "1:1",  desc: "Feed quadrado" },
+              ] as const).map(({ key, label, desc }) => {
+                const active = formatosRender.includes(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`${styles.formatChip} ${active ? styles.formatChipActive : ""}`}
+                    onClick={() => {
+                      if (active) {
+                        const next = formatosRender.filter((f) => f !== key);
+                        if (next.length > 0) setFormatosRender(next);
+                      } else {
+                        setFormatosRender((prev) => [...prev, key]);
+                      }
+                    }}
+                  >
+                    <span className={styles.formatChipDot} />
+                    <span>
+                      <span style={{ fontWeight: 700 }}>{label}</span>
+                      <span style={{ fontWeight: 400, color: "var(--ink-3)", marginLeft: 6 }}>{desc}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className={styles.refineModalActions}>
+              <button className={styles.refineModalCancel} onClick={() => setShowRenderModal(false)}>
+                Cancelar
+              </button>
+              <ActionButton onClick={() => { setShowRenderModal(false); handleRender(); }} icon={"▶"}>
+                Renderizar
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showRefineModal && (
         <div className={styles.refineModalOverlay} onClick={() => setShowRefineModal(false)}>
@@ -576,7 +634,7 @@ function VideoTrimBar({
 
 // ?? RenderingScreen ???????????????????????????????????????????????????????????
 
-function RenderingScreen({ progress }: { progress: RenderProgress | null }) {
+function RenderingScreen({ progress, formatLabel }: { progress: RenderProgress | null; formatLabel?: string }) {
   const pct = progress && progress.total > 0
     ? Math.round((progress.frames / progress.total) * 100) : 0;
 
@@ -585,7 +643,9 @@ function RenderingScreen({ progress }: { progress: RenderProgress | null }) {
       <div className={styles.renderCard}>
         <div className={styles.renderHeading}>
           <h2 className={styles.renderTitle}>Renderizando</h2>
-          <p className={styles.renderSubtitle}>O Remotion esta gerando o reel. Nao feche esta janela.</p>
+          <p className={styles.renderSubtitle}>
+            {formatLabel ? `Formato ${formatLabel} — ` : ""}O Remotion esta gerando o reel. Nao feche esta janela.
+          </p>
         </div>
         <div className={styles.renderBox}>
           {progress && progress.total > 0 ? (
@@ -639,24 +699,43 @@ function RefiningScreen() {
 
 // ?? SuccessScreen ?????????????????????????????????????????????????????????????
 
-function SuccessScreen({ jobId, outputPath, onNew }: { jobId: string; outputPath: string; onNew: () => void }) {
-  const [cleanup, setCleanup] = useState(true);
-  const [downloading, setDownloading] = useState(false);
+const FORMAT_LABELS: Record<string, string> = {
+  reels:  "9:16 Reels",
+  wide:   "16:9 Wide",
+  square: "1:1 Square",
+};
 
-  async function handleDownload() {
-    setDownloading(true);
+function SuccessScreen({ jobId, outputs, onNew }: { jobId: string; outputs: Record<string, string>; onNew: () => void }) {
+  const [cleanup, setCleanup] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const formatKeys = Object.keys(outputs);
+
+  async function handleDownload(formatKey: string, filename: string) {
+    setDownloading(formatKey);
     try {
       const a = document.createElement("a");
-      a.href = `/api/jobs/${jobId}/download`;
-      a.download = "reel.mp4";
+      a.href = `/api/jobs/${jobId}/download?format=${formatKey}`;
+      a.download = filename;
       a.click();
-      if (cleanup) {
-        await new Promise((r) => setTimeout(r, 1500));
-        await fetch(`/api/jobs/${jobId}/cleanup`, { method: "DELETE" });
-      }
     } finally {
-      setDownloading(false);
-      if (cleanup) onNew();
+      // Limpeza so apos baixar o ultimo formato
+      setDownloading(null);
+    }
+  }
+
+  async function handleDownloadAll() {
+    for (const key of formatKeys) {
+      const label = FORMAT_LABELS[key] ?? key;
+      const a = document.createElement("a");
+      a.href = `/api/jobs/${jobId}/download?format=${key}`;
+      a.download = `reel_${key}.mp4`;
+      a.click();
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    if (cleanup) {
+      await new Promise((r) => setTimeout(r, 1500));
+      await fetch(`/api/jobs/${jobId}/cleanup`, { method: "DELETE" });
+      onNew();
     }
   }
 
@@ -664,12 +743,29 @@ function SuccessScreen({ jobId, outputPath, onNew }: { jobId: string; outputPath
     <main className={styles.successScreen}>
       <div className={styles.successCard}>
         <div className={styles.successIcon}>&#10003;</div>
-        <h2 className={styles.successTitle}>Reel gerado</h2>
+        <h2 className={styles.successTitle}>
+          {formatKeys.length === 1 ? "Reel gerado" : `${formatKeys.length} formatos gerados`}
+        </h2>
         <p className={styles.successSubtitle}>O video foi renderizado com sucesso.</p>
-        <div className={styles.successPathBox}>
-          <div className={styles.successPathLabel}>Arquivo</div>
-          <code className={styles.successPath}>{outputPath}</code>
+
+        <div className={styles.successFiles}>
+          {formatKeys.map((key) => (
+            <div key={key} className={styles.successFileRow}>
+              <div className={styles.successFileInfo}>
+                <span className={styles.successFileLabel}>{FORMAT_LABELS[key] ?? key}</span>
+                <code className={styles.successPath}>{outputs[key]}</code>
+              </div>
+              <button
+                className={styles.successDownloadBtn}
+                disabled={downloading === key}
+                onClick={() => handleDownload(key, `reel_${key}.mp4`)}
+              >
+                {downloading === key ? "..." : "↓"}
+              </button>
+            </div>
+          ))}
         </div>
+
         <label className={styles.cleanupRow}>
           <input type="checkbox" checked={cleanup} onChange={(e) => setCleanup(e.target.checked)} />
           <div className={styles.cleanupLabel}>
@@ -678,10 +774,10 @@ function SuccessScreen({ jobId, outputPath, onNew }: { jobId: string; outputPath
           </div>
         </label>
         <div className={styles.successActions}>
-          <ActionButton onClick={handleDownload} disabled={downloading} icon={"↓"}>
-            {downloading ? "Baixando..." : "Baixar video"}
+          <ActionButton onClick={handleDownloadAll} disabled={!!downloading} icon={"↓"}>
+            {downloading ? "Baixando..." : formatKeys.length > 1 ? "Baixar todos" : "Baixar video"}
           </ActionButton>
-          <Link href="/" className={styles.btnSecondary}>Novo video</Link>
+          <button onClick={onNew} className={styles.btnSecondary}>Novo video</button>
         </div>
       </div>
     </main>

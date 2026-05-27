@@ -72,6 +72,14 @@ function substituirVideoPaths(obj: unknown, videoUrl: string, baseUrl: string): 
   return obj;
 }
 
+const FORMAT_CONFIG = {
+  reels:  { compositionId: "Reel",       suffix: "reel",   label: "9:16 Reels" },
+  wide:   { compositionId: "ReelWide",   suffix: "wide",   label: "16:9 Wide" },
+  square: { compositionId: "ReelSquare", suffix: "square", label: "1:1 Square" },
+} as const;
+
+type FormatKey = keyof typeof FORMAT_CONFIG;
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { jobId: string } }
@@ -84,8 +92,19 @@ export async function POST(
     return new Response(JSON.stringify({ error: "Job não encontrado" }), { status: 404 });
   }
 
+  // Formatos selecionados pelo usuário (default: apenas reels)
+  let formatos: FormatKey[] = ["reels"];
+  try {
+    const body = await req.json();
+    if (Array.isArray(body?.formatos) && body.formatos.length > 0) {
+      formatos = body.formatos.filter((f: string) => f in FORMAT_CONFIG) as FormatKey[];
+      if (formatos.length === 0) formatos = ["reels"];
+    }
+  } catch { /* body vazio */ }
+
   // Prepara props antes de abrir o stream
-  let outputPath: string;
+  let propsPath: string;
+  const outputDir = path.join(jobDir, "out");
   try {
     const scenes = JSON.parse(await readFile(scenesPath, "utf-8"));
     const host = req.headers.get("host") ?? "localhost:3001";
@@ -93,90 +112,96 @@ export async function POST(
     const baseUrl = `http://${host}`;
     const scenesComUrl = substituirVideoPaths(scenes, videoUrl, baseUrl);
 
-    const propsPath = path.join(jobDir, "props.json");
+    propsPath = path.join(jobDir, "props.json");
     await writeFile(propsPath, JSON.stringify(scenesComUrl, null, 2), "utf-8");
 
-    const outputDir = path.join(jobDir, "out");
     await mkdir(outputDir, { recursive: true });
-    outputPath = path.join(outputDir, "reel.mp4");
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500 });
   }
 
-  // SSE stream
+  // SSE stream — itera sobre cada formato selecionado sequencialmente
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       function send(data: object) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       }
 
       const bin = resolveRemotionBin();
       const isWin = process.platform === "win32";
+      const outputs: Record<string, string> = {};
 
-      const propsPath = path.join(jobDir, "props.json");
+      for (const formatKey of formatos) {
+        const fmt = FORMAT_CONFIG[formatKey];
+        const outputPath = path.join(outputDir, `reel_${fmt.suffix}.mp4`);
+        outputs[formatKey] = outputPath;
 
-      const child = spawn(bin, [
-        "render",
-        "Reel",
-        outputPath,
-        `--props=${propsPath}`,
-        "--log=verbose",
-      ], {
-        cwd: REMOTION_DIR,
-        shell: isWin,
-        stdio: ["ignore", "pipe", "pipe"],
-      });
+        send({ type: "format_start", format: formatKey, label: fmt.label });
 
-      const lines: string[] = [];
-      let lastFrames = 0;
-      let lastTotal = 0;
-      let lastEta = "";
+        const exitCode = await new Promise<number>((resolve) => {
+          const lines: string[] = [];
+          let lastFrames = 0;
+          let lastTotal = 0;
+          let lastEta = "";
 
-      function processChunk(chunk: Buffer) {
-        const raw = chunk.toString();
-        process.stdout.write(raw);
-        lines.push(raw);
+          const child = spawn(bin, [
+            "render",
+            fmt.compositionId,
+            outputPath,
+            `--props=${propsPath}`,
+            "--log=verbose",
+          ], {
+            cwd: REMOTION_DIR,
+            shell: isWin,
+            stdio: ["ignore", "pipe", "pipe"],
+          });
 
-        const text = stripAnsi(raw);
+          function processChunk(chunk: Buffer) {
+            const raw = chunk.toString();
+            process.stdout.write(raw);
+            lines.push(raw);
+            const text = stripAnsi(raw);
+            const frameMatch = text.match(FRAME_RE);
+            if (frameMatch) {
+              lastFrames = parseInt(frameMatch[1], 10);
+              lastTotal = parseInt(frameMatch[2], 10);
+            }
+            const etaMatch = text.match(ETA_RE);
+            if (etaMatch) {
+              lastEta = etaMatch[0].replace(/\s*remaining/i, "").trim();
+            }
+            if (lastTotal > 0) {
+              send({ type: "progress", format: formatKey, frames: lastFrames, total: lastTotal, eta: lastEta });
+            }
+          }
 
-        const frameMatch = text.match(FRAME_RE);
-        if (frameMatch) {
-          lastFrames = parseInt(frameMatch[1], 10);
-          lastTotal = parseInt(frameMatch[2], 10);
+          child.stdout?.on("data", processChunk);
+          child.stderr?.on("data", (chunk: Buffer) => {
+            process.stderr.write(chunk.toString());
+            lines.push(chunk.toString());
+          });
+
+          child.on("close", (code) => resolve(code ?? 1));
+          child.on("error", (err) => {
+            send({ type: "error", message: String(err) });
+            resolve(1);
+          });
+        });
+
+        if (exitCode !== 0) {
+          send({ type: "error", message: `Falha ao renderizar formato ${fmt.label} (código ${exitCode})` });
+          controller.close();
+          return;
         }
 
-        const etaMatch = text.match(ETA_RE);
-        if (etaMatch) {
-          lastEta = etaMatch[0].replace(/\s*remaining/i, "").trim();
-        }
-
-        if (lastTotal > 0) {
-          send({ type: "progress", frames: lastFrames, total: lastTotal, eta: lastEta });
-        }
+        send({ type: "format_done", format: formatKey, label: fmt.label, outputPath });
       }
 
-      child.stdout?.on("data", processChunk);
-      child.stderr?.on("data", (chunk: Buffer) => {
-        process.stderr.write(chunk.toString());
-        lines.push(chunk.toString());
-      });
-
-      child.on("close", (code) => {
-        if (code === 0) {
-          send({ type: "done", outputPath });
-        } else {
-          const tail = lines.join("").split("\n").slice(-60).join("\n");
-          send({ type: "error", message: `Remotion CLI saiu com código ${code}\n\n${tail}` });
-        }
-        controller.close();
-      });
-
-      child.on("error", (err) => {
-        send({ type: "error", message: String(err) });
-        controller.close();
-      });
+      // Todos os formatos concluídos
+      send({ type: "done", outputs, outputPath: outputs["reels"] ?? Object.values(outputs)[0] });
+      controller.close();
     },
   });
 

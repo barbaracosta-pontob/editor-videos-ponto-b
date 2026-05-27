@@ -5,7 +5,8 @@ import {
   spring,
   interpolate,
 } from "remotion";
-import { colors, typography, spacing } from "../theme";
+import { colors, useTypography, useSpacing } from "../theme";
+import { useScaleFactor } from "../hooks/useScaleFactor";
 
 type Cta09 = {
   id: "09_cta_full_navy";
@@ -18,6 +19,9 @@ type Cta09 = {
 export const CtaFullNavyScene: React.FC<{ cena: Cta09 }> = ({ cena }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
 
   const entrada = spring({
     frame,
@@ -36,18 +40,18 @@ export const CtaFullNavyScene: React.FC<{ cena: Cta09 }> = ({ cena }) => {
         background: `linear-gradient(180deg, ${colors.navy} 0%, ${colors.navyDeep} 100%)`,
         justifyContent: "center",
         alignItems: "center",
-        padding: `0 ${spacing.lg}px`,
+        padding: `0 ${sp.lg}px`,
       }}
     >
       <div
         style={{
           opacity,
           transform: `translateY(${translateY}px)`,
-          fontFamily: typography.fontFamily,
-          fontWeight: typography.weightHero,
-          fontSize: 108,
-          lineHeight: typography.lineHeightTight,
-          letterSpacing: typography.trackingTight,
+          fontFamily: typo.fontFamily,
+          fontWeight: typo.weightHero,
+          fontSize: Math.round(108 * scale),
+          lineHeight: typo.lineHeightTight,
+          letterSpacing: typo.trackingTight,
           textTransform: "uppercase",
           color: colors.white,
           textAlign: "center",
@@ -59,15 +63,15 @@ export const CtaFullNavyScene: React.FC<{ cena: Cta09 }> = ({ cena }) => {
       {cena.cta_texto_secundario ? (
         <div
           style={{
-            marginTop: spacing.lg,
+            marginTop: sp.lg,
             opacity: opacity * 0.9,
             transform: `translateY(${translateY}px)`,
-            fontFamily: typography.fontFamily,
-            fontWeight: typography.weightCaption,
-            fontSize: typography.sizeBody,
+            fontFamily: typo.fontFamily,
+            fontWeight: typo.weightCaption,
+            fontSize: typo.sizeBody,
             color: colors.textMuted,
             textAlign: "center",
-            maxWidth: 800,
+            maxWidth: Math.round(800 * scale),
           }}
         >
           {cena.cta_texto_secundario}
@@ -76,8 +80,8 @@ export const CtaFullNavyScene: React.FC<{ cena: Cta09 }> = ({ cena }) => {
 
       <div
         style={{
-          marginTop: spacing.xl,
-          fontSize: 120,
+          marginTop: sp.xl,
+          fontSize: Math.round(120 * scale),
           lineHeight: 1,
           color: colors.yellow,
           opacity,

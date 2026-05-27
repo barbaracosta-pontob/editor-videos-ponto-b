@@ -9,7 +9,8 @@ import {
   staticFile,
 } from "remotion";
 import type { Hook } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, buildTokenCorMap, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor, useSafeZoneBottom } from "../hooks/useScaleFactor";
 
 export const HookScene: React.FC<{
   cena: Hook;
@@ -19,15 +20,14 @@ export const HookScene: React.FC<{
 }> = ({ cena, corPrimaria, corSecundaria, fonteFamilia }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
+  const safeBottom = useSafeZoneBottom();
 
   const fontFamily = resolveFontFamily(fonteFamilia);
 
-  const titleSpring = spring({
-    frame,
-    fps,
-    config: { damping: 12, stiffness: 100, mass: 0.5 },
-  });
-
+  const titleSpring = spring({ frame, fps, config: { damping: 12, stiffness: 100, mass: 0.5 } });
   const titleOpacity = interpolate(titleSpring, [0, 1], [0, 1]);
   const titleY = interpolate(titleSpring, [0, 1], [40, 0]);
   const titleScale = interpolate(titleSpring, [0, 1], [0.92, 1]);
@@ -47,7 +47,6 @@ export const HookScene: React.FC<{
         </Sequence>
       ) : null}
 
-      {/* Gradiente inferior para legibilidade do título */}
       <AbsoluteFill style={{
         background: "linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.80) 100%)",
         pointerEvents: "none",
@@ -57,7 +56,7 @@ export const HookScene: React.FC<{
         style={{
           justifyContent: "flex-end",
           alignItems: "center",
-          padding: `0 ${spacing.lg}px 420px`,
+          padding: `0 ${sp.lg}px ${safeBottom}px`,
           textAlign: "center",
         }}
       >
@@ -66,31 +65,29 @@ export const HookScene: React.FC<{
             opacity: titleOpacity,
             transform: `translateY(${titleY}px) scale(${titleScale})`,
             fontFamily,
-            fontWeight: typography.weightHero,
-            fontSize: typography.sizeHero,
-            lineHeight: typography.lineHeightTight,
-            letterSpacing: typography.trackingTight,
+            fontWeight: typo.weightHero,
+            fontSize: typo.sizeHero,
+            lineHeight: typo.lineHeightTight,
+            letterSpacing: typo.trackingTight,
             textTransform: "uppercase",
             color: colors.white,
             textShadow: "0 4px 24px rgba(0,0,0,0.8)",
           }}
         >
           {tokens.map((token, i) => (
-            <span key={i} style={{ color: corMap[i] ?? colors.white }}>
-              {token}
-            </span>
+            <span key={i} style={{ color: corMap[i] ?? colors.white }}>{token}</span>
           ))}
         </div>
 
         {cena.subtitulo ? (
           <div
             style={{
-              marginTop: spacing.md,
+              marginTop: sp.md,
               opacity: titleOpacity * 0.9,
               transform: `translateY(${titleY * 0.8}px)`,
               fontFamily,
-              fontWeight: typography.weightBody,
-              fontSize: typography.sizeSubtitle,
+              fontWeight: typo.weightBody,
+              fontSize: typo.sizeSubtitle,
               color: colors.whiteSoft,
               textShadow: "0 2px 12px rgba(0,0,0,0.8)",
             }}

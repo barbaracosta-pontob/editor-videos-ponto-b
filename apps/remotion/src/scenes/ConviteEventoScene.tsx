@@ -10,7 +10,8 @@ import {
   staticFile,
 } from "remotion";
 import type { ConviteEvento } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily , resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor, useSafeZoneBottom, useSafeZoneTop } from "../hooks/useScaleFactor";
 
 export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -19,6 +20,11 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
+  const safeBottom = useSafeZoneBottom();
+  const safeTop = useSafeZoneTop();
 
   const accentColor = corPrimaria ?? colors.red;
   const fontFamily = resolveFontFamily(fonteFamilia);
@@ -46,7 +52,7 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
         style={{
           justifyContent: "center",
           alignItems: "flex-start",
-          padding: `200px ${spacing.lg}px 420px`,
+          padding: `${safeTop}px ${sp.lg}px ${safeBottom}px`,
           flexDirection: "column",
         }}
       >
@@ -55,7 +61,7 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
           <div style={{
             opacity,
             transform: `translateY(${translateY}px)`,
-            marginBottom: spacing.lg,
+            marginBottom: sp.lg,
             alignSelf: cena.logo_posicao === "centro" ? "center" : cena.logo_posicao === "rodape" ? "flex-end" : "flex-start",
           }}>
             <Img
@@ -73,7 +79,7 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
               height: 4,
               backgroundColor: accentColor,
               borderRadius: 2,
-              marginBottom: spacing.md,
+              marginBottom: sp.md,
             }}
           />
         )}
@@ -84,13 +90,13 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
             opacity,
             transform: `translateY(${translateY}px)`,
             fontFamily,
-            fontWeight: typography.weightHero,
-            fontSize: typography.sizeTitle,
-            lineHeight: typography.lineHeightTight,
-            letterSpacing: typography.trackingTight,
+            fontWeight: typo.weightHero,
+            fontSize: typo.sizeTitle,
+            lineHeight: typo.lineHeightTight,
+            letterSpacing: typo.trackingTight,
             textTransform: "uppercase",
             color: colors.white,
-            marginBottom: cena.descricao ? spacing.sm : spacing.lg,
+            marginBottom: cena.descricao ? sp.sm : sp.lg,
           }}
         >
           {cena.nome_evento}
@@ -103,11 +109,11 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
               opacity: opacity * 0.85,
               transform: `translateY(${translateY}px)`,
               fontFamily,
-              fontWeight: typography.weightBody,
-              fontSize: typography.sizeBody,
+              fontWeight: typo.weightBody,
+              fontSize: typo.sizeBody,
               color: colors.textMuted,
-              marginBottom: spacing.lg,
-              lineHeight: typography.lineHeightBody,
+              marginBottom: sp.lg,
+              lineHeight: typo.lineHeightBody,
             }}
           >
             {cena.descricao}
@@ -115,7 +121,7 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
         ) : null}
 
         {/* Bullets */}
-        <div style={{ display: "flex", flexDirection: "column", gap: spacing.sm }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: sp.sm }}>
           {cena.bullets.map((bullet, i) => {
             const delay = i * 6;
             const bulletEntrada = spring({
@@ -134,7 +140,7 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
                   transform: `translateX(${bulletX}px)`,
                   display: "flex",
                   alignItems: "center",
-                  gap: spacing.sm,
+                  gap: sp.sm,
                 }}
               >
                 <div
@@ -157,10 +163,10 @@ export const ConviteEventoScene: React.FC<{ cena: ConviteEvento; corPrimaria?: s
                 <div
                   style={{
                     fontFamily,
-                    fontWeight: typography.weightBody,
-                    fontSize: typography.sizeBody,
+                    fontWeight: typo.weightBody,
+                    fontSize: typo.sizeBody,
                     color: colors.whiteSoft,
-                    lineHeight: typography.lineHeightBody,
+                    lineHeight: typo.lineHeightBody,
                   }}
                 >
                   {bullet}

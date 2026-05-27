@@ -9,7 +9,8 @@ import {
   staticFile,
 } from "remotion";
 import type { CTA } from "@pontob/schema";
-import { colors, typography, spacing, resolveFontFamily, buildTokenCorMap, resolveWordColor, resolveAudioSrc } from "../theme";
+import { colors, resolveFontFamily, buildTokenCorMap, resolveWordColor, resolveAudioSrc, useTypography, useSpacing } from "../theme";
+import { useScaleFactor } from "../hooks/useScaleFactor";
 
 export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria?: string; fonteFamilia?: string }> = ({
   cena,
@@ -19,6 +20,9 @@ export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const scale = useScaleFactor();
+  const typo = useTypography(scale);
+  const sp = useSpacing(scale);
 
   const fontFamily = resolveFontFamily(fonteFamilia);
 
@@ -51,7 +55,7 @@ export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria
         style={{
           justifyContent: "flex-end",
           alignItems: "center",
-          padding: `0 ${spacing.lg}px ${spacing.xl}px`,
+          padding: `0 ${sp.lg}px ${sp.xl}px`,
         }}
       >
         <div
@@ -59,10 +63,10 @@ export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria
             opacity,
             transform: `translateY(${translateY}px)`,
             fontFamily,
-            fontWeight: typography.weightHero,
-            fontSize: 108,
-            lineHeight: typography.lineHeightTight,
-            letterSpacing: typography.trackingTight,
+            fontWeight: typo.weightHero,
+            fontSize: Math.round(108 * scale),
+            lineHeight: typo.lineHeightTight,
+            letterSpacing: typo.trackingTight,
             textTransform: "uppercase",
             color: colors.white,
             textAlign: "center",
@@ -78,15 +82,15 @@ export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria
         {cena.texto_secundario ? (
           <div
             style={{
-              marginTop: spacing.lg,
+              marginTop: sp.lg,
               opacity: opacity * 0.9,
               transform: `translateY(${translateY}px)`,
               fontFamily,
-              fontWeight: typography.weightCaption,
-              fontSize: typography.sizeBody,
+              fontWeight: typo.weightCaption,
+              fontSize: typo.sizeBody,
               color: colors.textMuted,
               textAlign: "center",
-              maxWidth: 800,
+              maxWidth: Math.round(800 * scale),
             }}
           >
             {cena.texto_secundario}
@@ -96,8 +100,8 @@ export const CtaScene: React.FC<{ cena: CTA; corPrimaria?: string; corSecundaria
         {cena.mostrar_seta !== false ? (
           <div
             style={{
-              marginTop: spacing.xl,
-              fontSize: 120,
+              marginTop: sp.xl,
+              fontSize: Math.round(120 * scale),
               lineHeight: 1,
               color: setaCor,
               opacity,

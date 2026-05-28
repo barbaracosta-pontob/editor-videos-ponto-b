@@ -209,7 +209,9 @@ export type MusicaFundo = z.infer<typeof MusicaFundoSchema>;
 
 export const ReelPropsSchema = z
   .object({
-    duracao_total_estimada: z.number().min(40).max(120),
+    // Aceita reels curtos quando o video bruto e curto (ex: video de 30s -> reel de 30s).
+    // O teto fisico (videoDuration) e aplicado em runtime pelo clampReelToVideoDuration.
+    duracao_total_estimada: z.number().min(5).max(120),
     video_original_path: z.string().optional(),
     // Ponto exato (em segundos) onde o vídeo de fundo começa a tocar.
     // Separado do início de cada cena/overlay — permite editar quando cada

@@ -49,7 +49,8 @@ const TIPO_COLORS: Record<string, string> = {
 
 const FPS = 30;
 
-type RenderProgress = { frames: number; total: number; eta: string };
+type RenderPhase = "bundling" | "rendering" | "encoding";
+type RenderProgress = { frames: number; total: number; eta: string; phase?: RenderPhase };
 
 function getPreview(cena: Cena): string {
   const c = cena as Record<string, unknown>;
@@ -71,6 +72,8 @@ export function EditorView({ job, onNew }: EditorViewProps) {
   const [rendering, setRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState<RenderProgress | null>(null);
   const [renderFormatLabel, setRenderFormatLabel] = useState<string>("");
+  const [renderPhase, setRenderPhase] = useState<RenderPhase>("bundling");
+  const [renderLastSeenAt, setRenderLastSeenAt] = useState<number>(0);
   const [outputs, setOutputs] = useState<Record<string, string> | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [formatosRender, setFormatosRender] = useState<string[]>(["reels"]);
@@ -105,6 +108,42 @@ export function EditorView({ job, onNew }: EditorViewProps) {
   }, []);
 
   const totalSec = scenes.reduce((acc, c) => acc + c.duracao_segundos, 0);
+
+  // ── Inserir cena ────────────────────────────────────────────────────────────
+  // Insere uma FraseImpacto logo depois da cena selecionada. Comportamento:
+  // - Bloqueado se ja chegou no max do schema (15 cenas)
+  // - Bloqueado se a cena selecionada e o CTA (CTA deve ser sempre a ultima)
+  // - Se nenhuma cena estiver selecionada, insere no final antes do CTA
+  // O usuario pode trocar o tipo via o seletor de tipo, mover com setas e editar texto.
+  const MAX_CENAS = 15;
+  const podeAdicionarCena = scenes.length < MAX_CENAS && (
+    selectedIdx === null
+      ? true
+      : scenes[selectedIdx]?.tipo !== "CTA"
+  );
+
+  function addSceneAfterSelected() {
+    if (!podeAdicionarCena) return;
+    // Posicao de insercao: depois da selecionada, ou antes do CTA se nenhuma selecionada
+    const insertAt = selectedIdx !== null
+      ? selectedIdx + 1
+      : Math.max(1, scenes.length - 1); // antes do CTA (ultima cena)
+
+    const novaCena = {
+      tipo: "FraseImpacto",
+      texto: "Novo texto",
+      palavras_destacadas: [],
+      alinhamento: "centro",
+      duracao_segundos: 3,
+      fundo: "navy",
+      sfx: { path: "sfx/transition.mp3", volume: 2 },
+    } as unknown as Cena;
+
+    const next = [...scenes];
+    next.splice(insertAt, 0, novaCena);
+    setScenes(next);
+    setSelectedIdx(insertAt);
+  }
 
   // Duracao real do player = trecho ativo do video bruto (fim - inicio).
   // NAO e a soma dos overlays.
@@ -205,11 +244,37 @@ export function EditorView({ job, onNew }: EditorViewProps) {
           if (!line) continue;
           try {
             const msg = JSON.parse(line);
-            if (msg.type === "format_start") setRenderFormatLabel(msg.label);
-            else if (msg.type === "progress") setRenderProgress({ frames: msg.frames, total: msg.total, eta: msg.eta });
-            else if (msg.type === "format_done") setRenderProgress(null);
-            else if (msg.type === "done") { setOutputs(msg.outputs ?? { reels: msg.outputPath }); setRendering(false); return; }
-            else if (msg.type === "error") throw new Error(msg.message);
+            if (msg.type === "format_start") {
+              setRenderFormatLabel(msg.label);
+              setRenderPhase("bundling");
+              setRenderProgress(null);
+              setRenderLastSeenAt(Date.now());
+            } else if (msg.type === "phase") {
+              setRenderPhase(msg.phase as RenderPhase);
+              setRenderLastSeenAt(Date.now());
+              // Ao entrar em encoding, zera o progresso de frames pra UI nao mostrar
+              // "1800/1800 frames" travado enquanto FFmpeg roda. Se vier Encoded X/Y,
+              // o proximo evento de progress vai atualizar.
+              if (msg.phase === "encoding") {
+                setRenderProgress((prev) => prev ? { ...prev, frames: 0, total: 0, eta: "", phase: "encoding" } : null);
+              }
+            } else if (msg.type === "progress") {
+              setRenderProgress({ frames: msg.frames, total: msg.total, eta: msg.eta, phase: msg.phase as RenderPhase | undefined });
+              if (msg.phase) setRenderPhase(msg.phase as RenderPhase);
+              setRenderLastSeenAt(Date.now());
+            } else if (msg.type === "heartbeat") {
+              if (msg.phase) setRenderPhase(msg.phase as RenderPhase);
+              setRenderLastSeenAt(Date.now());
+            } else if (msg.type === "format_done") {
+              setRenderProgress(null);
+              setRenderPhase("bundling");
+            } else if (msg.type === "done") {
+              setOutputs(msg.outputs ?? { reels: msg.outputPath });
+              setRendering(false);
+              return;
+            } else if (msg.type === "error") {
+              throw new Error(msg.message);
+            }
           } catch { /* linha incompleta */ }
         }
       }
@@ -263,7 +328,7 @@ export function EditorView({ job, onNew }: EditorViewProps) {
     }
   }
 
-  if (rendering) return <RenderingScreen progress={renderProgress} formatLabel={renderFormatLabel} />;
+  if (rendering) return <RenderingScreen progress={renderProgress} formatLabel={renderFormatLabel} phase={renderPhase} lastSeenAt={renderLastSeenAt} />;
   if (refining) return <RefiningScreen />;
   if (outputs) return <SuccessScreen jobId={job.id} outputs={outputs} onNew={onNew} />;
 
@@ -418,7 +483,36 @@ export function EditorView({ job, onNew }: EditorViewProps) {
       <div className={styles.body}>
 
         <div className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>Sequencia &middot; {Math.round(totalSec)}s</div>
+          <div className={styles.sidebarHeader} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span>Sequencia &middot; {Math.round(totalSec)}s</span>
+            <button
+              onClick={addSceneAfterSelected}
+              disabled={!podeAdicionarCena}
+              title={
+                scenes.length >= MAX_CENAS
+                  ? `Limite de ${MAX_CENAS} cenas atingido`
+                  : selectedIdx !== null && scenes[selectedIdx]?.tipo === "CTA"
+                  ? "Nao e possivel inserir cena depois do CTA"
+                  : selectedIdx !== null
+                  ? `Adicionar cena depois da #${String(selectedIdx + 1).padStart(2, "0")}`
+                  : "Adicionar cena antes do CTA"
+              }
+              style={{
+                background: podeAdicionarCena ? "var(--accent)" : "var(--b-mid)",
+                border: "none",
+                borderRadius: 6,
+                color: "#fff",
+                cursor: podeAdicionarCena ? "pointer" : "not-allowed",
+                opacity: podeAdicionarCena ? 1 : 0.5,
+                padding: "4px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                lineHeight: 1.2,
+              }}
+            >
+              + Cena
+            </button>
+          </div>
           {scenes.map((cena, i) => {
             const cor = TIPO_COLORS[cena.tipo] ?? "var(--c-transicao)";
             const label = TIPO_LABELS[cena.tipo] ?? cena.tipo;
@@ -634,9 +728,37 @@ function VideoTrimBar({
 
 // ?? RenderingScreen ???????????????????????????????????????????????????????????
 
-function RenderingScreen({ progress, formatLabel }: { progress: RenderProgress | null; formatLabel?: string }) {
-  const pct = progress && progress.total > 0
-    ? Math.round((progress.frames / progress.total) * 100) : 0;
+const PHASE_DESC: Record<RenderPhase, { titulo: string; descricao: string; mostraBarra: boolean }> = {
+  bundling:  { titulo: "Preparando componentes",     descricao: "Compilando React e carregando assets.",   mostraBarra: false },
+  rendering: { titulo: "Renderizando frames",         descricao: "Cada frame e gerado pelo Chromium.",       mostraBarra: true  },
+  encoding:  { titulo: "Combinando em MP4",           descricao: "O FFmpeg esta juntando audio e video. Pode levar de 10s a 1min.", mostraBarra: true  },
+};
+
+function RenderingScreen({
+  progress,
+  formatLabel,
+  phase,
+  lastSeenAt,
+}: {
+  progress: RenderProgress | null;
+  formatLabel?: string;
+  phase: RenderPhase;
+  lastSeenAt: number;
+}) {
+  const [now, setNow] = useState(Date.now());
+
+  // Tick a cada 500ms para detectar quando o servidor para de enviar eventos
+  // (heartbeat ou progress). Se passar mais que 8s, mostra aviso de stall.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
+
+  const phaseInfo = PHASE_DESC[phase];
+  const temProgresso = progress && progress.total > 0 && phaseInfo.mostraBarra;
+  const pct = temProgresso ? Math.round((progress!.frames / progress!.total) * 100) : 0;
+  const segundosDesdeUltimoEvento = lastSeenAt > 0 ? Math.floor((now - lastSeenAt) / 1000) : 0;
+  const stallSuspeito = lastSeenAt > 0 && segundosDesdeUltimoEvento > 8;
 
   return (
     <main className={styles.renderScreen}>
@@ -644,18 +766,50 @@ function RenderingScreen({ progress, formatLabel }: { progress: RenderProgress |
         <div className={styles.renderHeading}>
           <h2 className={styles.renderTitle}>Renderizando</h2>
           <p className={styles.renderSubtitle}>
-            {formatLabel ? `Formato ${formatLabel} — ` : ""}O Remotion esta gerando o reel. Nao feche esta janela.
+            {formatLabel ? `Formato ${formatLabel} — ` : ""}{phaseInfo.descricao}
           </p>
         </div>
+
+        {/* Indicador de fases */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, justifyContent: "center" }}>
+          {(["bundling", "rendering", "encoding"] as RenderPhase[]).map((p) => {
+            const order = { bundling: 0, rendering: 1, encoding: 2 };
+            const atual = order[phase];
+            const este = order[p];
+            const estado = este < atual ? "feito" : este === atual ? "ativo" : "pendente";
+            return (
+              <div
+                key={p}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: estado === "ativo" ? "var(--accent)" : estado === "feito" ? "rgba(34, 197, 94, 0.15)" : "var(--b-mid)",
+                  color: estado === "ativo" ? "#fff" : estado === "feito" ? "#22c55e" : "var(--text-muted)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  opacity: estado === "pendente" ? 0.5 : 1,
+                  transition: "all 0.2s",
+                }}
+              >
+                <span>{estado === "feito" ? "✓" : este + 1}</span>
+                <span>{PHASE_DESC[p].titulo}</span>
+              </div>
+            );
+          })}
+        </div>
+
         <div className={styles.renderBox}>
-          {progress && progress.total > 0 ? (
+          {temProgresso ? (
             <>
               <div className={styles.renderFrameRow}>
                 <div>
-                  <span className={styles.renderFrames}>{progress.frames}</span>
-                  <span className={styles.renderTotal}> / {progress.total} frames</span>
+                  <span className={styles.renderFrames}>{progress!.frames}</span>
+                  <span className={styles.renderTotal}> / {progress!.total} frames</span>
                 </div>
-                {progress.eta && <span className={styles.renderEta}>{progress.eta} restante</span>}
+                {progress!.eta && <span className={styles.renderEta}>{progress!.eta} restante</span>}
               </div>
               <div className={styles.renderProgressTrack}>
                 <div className={styles.renderProgressBar} style={{ width: `${pct}%` }} />
@@ -665,10 +819,26 @@ function RenderingScreen({ progress, formatLabel }: { progress: RenderProgress |
           ) : (
             <div className={styles.renderWaiting}>
               <div className={styles.renderPulseDot} />
-              Iniciando renderizacao...
+              {phaseInfo.titulo}...
             </div>
           )}
         </div>
+
+        {/* Sinal de "ainda vivo" para o usuario nao achar que travou */}
+        {lastSeenAt > 0 && (
+          <div style={{
+            marginTop: 12,
+            fontSize: 11,
+            color: stallSuspeito ? "#E63946" : "var(--text-muted)",
+            textAlign: "center",
+          }}>
+            {stallSuspeito
+              ? `Sem resposta do servidor ha ${segundosDesdeUltimoEvento}s — pode ter travado.`
+              : segundosDesdeUltimoEvento === 0
+              ? "Recebendo dados do servidor"
+              : `Ultimo sinal ha ${segundosDesdeUltimoEvento}s`}
+          </div>
+        )}
       </div>
     </main>
   );
@@ -708,34 +878,73 @@ const FORMAT_LABELS: Record<string, string> = {
 function SuccessScreen({ jobId, outputs, onNew }: { jobId: string; outputs: Record<string, string>; onNew: () => void }) {
   const [cleanup, setCleanup] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const formatKeys = Object.keys(outputs);
+
+  /**
+   * Baixa um arquivo via fetch+blob, garantindo que TODOS os bytes
+   * sao transferidos antes da Promise resolver. Necessario porque
+   * o pattern <a href> + click() apenas dispara o download — nao da
+   * pra saber quando ele termina, e isso quebra qualquer cleanup
+   * que rode em sequencia.
+   */
+  async function baixarArquivo(url: string, filename: string): Promise<void> {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Falha ao baixar ${filename}: HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      // Libera a memoria do blob depois de um tempo curto. O browser
+      // ja salvou o arquivo no disco quando o click() rodou.
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+    }
+  }
 
   async function handleDownload(formatKey: string, filename: string) {
     setDownloading(formatKey);
+    setDownloadError(null);
     try {
-      const a = document.createElement("a");
-      a.href = `/api/jobs/${jobId}/download?format=${formatKey}`;
-      a.download = filename;
-      a.click();
+      await baixarArquivo(`/api/jobs/${jobId}/download?format=${formatKey}`, filename);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : String(err));
     } finally {
-      // Limpeza so apos baixar o ultimo formato
       setDownloading(null);
     }
   }
 
   async function handleDownloadAll() {
-    for (const key of formatKeys) {
-      const label = FORMAT_LABELS[key] ?? key;
-      const a = document.createElement("a");
-      a.href = `/api/jobs/${jobId}/download?format=${key}`;
-      a.download = `reel_${key}.mp4`;
-      a.click();
-      await new Promise((r) => setTimeout(r, 800));
-    }
-    if (cleanup) {
-      await new Promise((r) => setTimeout(r, 1500));
-      await fetch(`/api/jobs/${jobId}/cleanup`, { method: "DELETE" });
-      onNew();
+    setDownloading("all");
+    setDownloadError(null);
+    try {
+      for (const key of formatKeys) {
+        setDownloading(key);
+        await baixarArquivo(
+          `/api/jobs/${jobId}/download?format=${key}`,
+          `reel_${key}.mp4`,
+        );
+      }
+      // Todos os arquivos foram realmente recebidos pelo browser.
+      // So agora e seguro apagar o diretorio do job no servidor.
+      if (cleanup) {
+        const res = await fetch(`/api/jobs/${jobId}/cleanup`, { method: "DELETE" });
+        if (!res.ok) {
+          console.warn(`[cleanup] DELETE retornou ${res.status} — arquivos podem ter ficado em disco.`);
+        }
+        onNew();
+      }
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDownloading(null);
     }
   }
 
@@ -766,16 +975,36 @@ function SuccessScreen({ jobId, outputs, onNew }: { jobId: string; outputs: Reco
           ))}
         </div>
 
+        {downloadError && (
+          <div style={{
+            margin: "12px 0",
+            padding: "10px 14px",
+            background: "rgba(230, 57, 70, 0.12)",
+            border: "1px solid rgba(230, 57, 70, 0.45)",
+            borderRadius: 8,
+            color: "#E63946",
+            fontSize: 13,
+            lineHeight: 1.4,
+          }}>
+            {downloadError}
+          </div>
+        )}
         <label className={styles.cleanupRow}>
-          <input type="checkbox" checked={cleanup} onChange={(e) => setCleanup(e.target.checked)} />
+          <input type="checkbox" checked={cleanup} onChange={(e) => setCleanup(e.target.checked)} disabled={!!downloading} />
           <div className={styles.cleanupLabel}>
             Limpar arquivos temporarios apos baixar
-            <span>Remove video original, transcricao e JSONs. Mantem apenas o reel.</span>
+            <span>Remove video original, transcricao e JSONs. So executa depois que TODOS os downloads terminam.</span>
           </div>
         </label>
         <div className={styles.successActions}>
           <ActionButton onClick={handleDownloadAll} disabled={!!downloading} icon={"↓"}>
-            {downloading ? "Baixando..." : formatKeys.length > 1 ? "Baixar todos" : "Baixar video"}
+            {downloading
+              ? (downloading === "all"
+                  ? "Baixando..."
+                  : `Baixando ${FORMAT_LABELS[downloading] ?? downloading}...`)
+              : formatKeys.length > 1
+              ? "Baixar todos"
+              : "Baixar video"}
           </ActionButton>
           <button onClick={onNew} className={styles.btnSecondary}>Novo video</button>
         </div>
@@ -844,12 +1073,31 @@ function SceneDetail({
 
   function listField(key: string, lbl: string) {
     if (!(key in c)) return null;
+    // IMPORTANTE: nao filtrar strings vazias no onChange. O textarea e controlado;
+    // se filtrarmos enquanto o usuario digita, a tecla Enter "nao funciona" porque
+    // o "\n" cria uma string vazia que sumiria, fazendo o cursor voltar pra mesma linha.
+    // A limpeza acontece no onBlur (quando o usuario sai do campo).
+    const itens = (c[key] as string[]) ?? [];
     return (
       <div key={key} className={styles.field}>
         <label className={styles.fieldLabel}>{lbl}</label>
-        <textarea className={styles.input} rows={4}
-          value={(c[key] as string[]).join("\n")}
-          onChange={(e) => onChange({ ...cena, [key]: e.target.value.split("\n").filter(Boolean) } as Cena)} />
+        <textarea
+          className={styles.input}
+          rows={Math.max(4, itens.length + 1)}
+          value={itens.join("\n")}
+          onChange={(e) =>
+            onChange({ ...cena, [key]: e.target.value.split("\n") } as Cena)
+          }
+          onBlur={(e) =>
+            onChange({
+              ...cena,
+              [key]: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+            } as Cena)
+          }
+        />
+        <div style={{ marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
+          {itens.filter((s) => s.trim()).length} {itens.filter((s) => s.trim()).length === 1 ? "item" : "itens"}
+        </div>
       </div>
     );
   }

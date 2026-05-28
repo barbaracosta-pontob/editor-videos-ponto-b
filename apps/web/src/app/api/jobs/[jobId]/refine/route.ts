@@ -8,11 +8,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { refine, AnalysisError } from "../../../../../services/analysis-bridge";
 import { getEspecialistaOrGenerico } from "../../../../../lib/db";
+import { getVideoDuration } from "../../../../../lib/video-duration";
 
 const REPO_ROOT = path.resolve(process.cwd(), "../..");
 const JOBS_DIR = process.env.JOBS_DIR
@@ -64,10 +65,25 @@ export async function POST(
     observacoes: rawEsp.brief_padrao || undefined,
   };
 
+  // Obtem duracao real do arquivo de video via ffprobe.
+  // Procura qualquer arquivo .mp4 dentro do diretorio do job — o nome pode
+  // diferir, mas a pasta sempre tem apenas um video bruto.
+  const videoFile = (() => {
+    try {
+      const files = readdirSync(jobDir);
+      return files.find((f) => f.toLowerCase().endsWith(".mp4")) ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  const videoPathLocal = videoFile ? path.join(jobDir, videoFile) : cenasAtuais.video_original_path;
+  const videoDuration = videoPathLocal ? await getVideoDuration(videoPathLocal) : null;
+
   try {
     const result = await refine({
       transcript,
       videoOriginalPath: cenasAtuais.video_original_path,
+      videoDuration: videoDuration ?? undefined,
       cenasAtuais,
       especialista,
       brief,

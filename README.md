@@ -6,20 +6,23 @@ Pipeline interno da Ponto B para gerar reels (1080×1920, 60–100s) a partir de
 
 ---
 
-## Início rápido (Windows)
+## Início rápido (depois que o setup já foi feito uma vez)
 
-Após concluir o setup completo abaixo, use o atalho incluído no projeto para iniciar o editor com um duplo clique:
+Se você ou alguém da equipe já fez o setup completo na sua máquina, usar o editor é simples:
 
-1. Na raiz do projeto, clique duas vezes em **`Iniciar Editor.bat`**
-2. Uma janela do servidor abrirá em segundo plano
-3. O navegador abrirá automaticamente em `http://localhost:3000` assim que o servidor estiver pronto
-4. Para encerrar, feche a janela **"PontoB Server"**
+1. Vá até a pasta `editor-reels-ponto-b` no Windows Explorer
+2. Dê **dois cliques no arquivo `Iniciar Editor.bat`**
+3. Vai abrir uma janela preta chamada "PontoB Server" — **não feche essa janela**, ela é o servidor rodando
+4. Espere cerca de 30 segundos. O navegador vai abrir sozinho em `http://localhost:3000`
+5. Quando terminar de usar, é só fechar a janela "PontoB Server"
 
-> **Dica:** Para colocar o atalho no Desktop, clique com o botão direito no `Iniciar Editor.bat` → *Enviar para → Área de trabalho (criar atalho)*.
+> **Dica — atalho no Desktop:** na primeira vez que você rodar o `Iniciar Editor.bat`, ele cria automaticamente um atalho no Desktop chamado "Ponto B - Video Editor" com o ícone do app. Da próxima vez é só clicar no atalho.
+
+**Se você nunca fez o setup, siga o passo a passo completo abaixo.** É demorado (umas duas horas na primeira vez), mas você só faz uma vez por máquina.
 
 ---
 
-## Como funciona
+## Como funciona (para entender o que está sendo instalado)
 
 ```
 [vídeo bruto .mp4]
@@ -34,138 +37,311 @@ Após concluir o setup completo abaixo, use o atalho incluído no projeto para i
 
 Tudo passa pela interface web em `localhost:3000`. Cada job persiste em `jobs/<job_id>/`.
 
+Para o pipeline funcionar a gente precisa instalar 4 ferramentas no seu computador (passo 0), depois baixar o código do projeto e configurar (passos 1 a 5).
+
 ---
 
-## Setup — passo a passo
+## Antes de começar — entendendo o que é "Terminal"
 
-### Pré-requisitos
+Praticamente todo o setup acontece no **Terminal** (também chamado de "Prompt de Comando", "PowerShell" ou "CMD" no Windows). É uma janela preta onde você digita comandos em vez de clicar em botões. Você cola um comando, aperta Enter, e ele executa.
 
-| Ferramenta | Versão mínima | Windows | macOS | Linux |
-|---|---|---|---|---|
-| Node.js | 20+ | [nodejs.org](https://nodejs.org) | `brew install node` | `nvm install 20` |
-| Python | **3.12** (não use 3.13+) | [python.org](https://www.python.org/downloads/release/python-3128/) | `brew install python@3.12` | `sudo apt install python3.12` |
-| FFmpeg | qualquer | `winget install Gyan.FFmpeg` | `brew install ffmpeg` | `sudo apt install ffmpeg` |
-| VC++ Redistributable | 2015–2022 | [vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe) | já incluso | já incluso |
+**Como abrir um Terminal na pasta do projeto (Windows — método mais fácil):**
 
-> **Windows — VC++ Redistributable.** O `onnxruntime` (usado pelo filtro VAD da transcrição) depende do runtime do Visual C++. Sem ele, a transcrição falha com `DLL load failed while importing onnxruntime_pybind11_state`. Em macOS/Linux não é necessário.
+1. Abra o Windows Explorer
+2. Navegue até a pasta onde você quer que o projeto fique (ex: `C:\repos`)
+3. Clique uma vez na **barra de endereço** do Explorer (em cima, onde mostra o caminho)
+4. Apague o que está escrito ali, digite **`powershell`** e aperte Enter
+5. Vai abrir uma janela azul ou preta — esse é o terminal, **já posicionado** na pasta certa
 
-Confirme que estão instalados:
+> **Alternativa:** clique com o botão direito **dentro** da pasta segurando a tecla **Shift** → "Abrir janela do PowerShell aqui" (em versões mais antigas do Windows) ou "Abrir no Terminal" (Windows 11).
 
-```bash
-node --version   # deve mostrar v20+
-python --version # deve mostrar 3.12.x
+**Como saber onde o Terminal está agora:** a primeira linha mostra o caminho atual, tipo `PS C:\repos>`. Esse `C:\repos` é a pasta onde você está. Qualquer comando que você rodar vai afetar essa pasta.
+
+**Como colar um comando no Terminal:**
+
+- Copie o comando do README com Ctrl+C como sempre
+- Clique dentro da janela do Terminal
+- Cole com **clique direito do mouse** (no Windows PowerShell clássico) ou **Ctrl+V** (no Windows Terminal mais novo)
+- Aperte **Enter** para executar
+
+**O que esperar quando você rodar um comando:**
+
+- Se aparecer texto descendo na tela, o comando está rodando — é só esperar
+- Se voltar pro prompt (`PS C:\repos>`) **sem mensagem de erro vermelha**, deu certo
+- Se aparecer texto **vermelho** ou a palavra "Error", algo deu errado — leia a mensagem ou consulte a seção "Problemas comuns" no final deste README
+
+---
+
+## Setup completo — passo a passo (primeira vez)
+
+### Passo 0 — Instalar as ferramentas básicas no sistema
+
+Antes de baixar o código, você precisa instalar 4 programas no Windows. Cada um faz uma parte diferente do trabalho.
+
+#### 0.1 — Node.js (motor que roda o site do editor)
+
+1. Acesse https://nodejs.org
+2. Clique no botão **LTS** (versão estável, atualmente 20.x ou superior)
+3. Baixe o instalador `.msi` e execute
+4. Aceite todas as opções padrão, clique "Next" até o fim
+5. **Reinicie o computador** depois da instalação (importante pra ele aparecer no Terminal)
+
+**Como confirmar que instalou:** abra um Terminal (PowerShell) e cole:
+
+```powershell
+node --version
+```
+
+Aperte Enter. Deve aparecer algo como `v20.11.0`. Se aparecer "comando não reconhecido", reinicie o computador e tente de novo.
+
+#### 0.2 — Python 3.12 (usado pra transcrever o áudio do vídeo)
+
+> **Atenção:** tem que ser a versão **3.12**. As versões 3.13 e 3.14 fazem o transcritor quebrar.
+
+1. Acesse https://www.python.org/downloads/release/python-3128/
+2. Role até "Files" e baixe o **Windows installer (64-bit)**
+3. Execute o instalador
+4. Na primeira tela, **marque a caixa "Add python.exe to PATH"** (importante, senão não funciona no Terminal)
+5. Clique em "Install Now" e aguarde
+6. Reinicie o computador
+
+**Como confirmar que instalou:** abra um Terminal e cole:
+
+```powershell
+py -3.12 --version
+```
+
+Deve aparecer `Python 3.12.x`. Se aparecer outra versão ou erro, refaça a instalação garantindo que marcou "Add to PATH".
+
+#### 0.3 — FFmpeg (manipula arquivos de vídeo)
+
+Abra o Terminal **como Administrador** (clique no Menu Iniciar, digite "PowerShell", clique direito → "Executar como administrador") e cole:
+
+```powershell
+winget install Gyan.FFmpeg
+```
+
+Aperte Enter. Vai baixar e instalar sozinho — pode demorar alguns minutos. Quando voltar pro prompt, fechou.
+
+**Como confirmar:** feche e reabra o Terminal (não precisa ser como Admin desta vez) e cole:
+
+```powershell
 ffmpeg -version
 ```
 
-> **Importante — use Python 3.12.** O `faster-whisper` depende do `ctranslate2`, e a versão estável para esta máquina (`ctranslate2 4.4.0`) só tem build para Python ≤ 3.12. Criar a `.venv` com Python 3.13 ou 3.14 força um `ctranslate2` mais novo que **crasha ao carregar o modelo** (erro `0xC0000005`, access violation, em CPUs sem AVX2). Confira em `services/transcription/.venv/pyvenv.cfg` se a venv aponta para o Python 3.12.
+Deve aparecer um monte de texto começando com "ffmpeg version...". Se não aparecer, reinicie o computador.
 
-#### Windows — liberar execução de scripts no PowerShell
+#### 0.4 — Visual C++ Redistributable (dependência da transcrição)
 
-Por padrão o PowerShell bloqueia scripts externos (incluindo o `npm`). Abra o PowerShell **como Administrador** e rode uma vez:
+1. Baixe o arquivo daqui: https://aka.ms/vs/17/release/vc_redist.x64.exe
+2. Execute o instalador, aceite os termos e clique "Install"
+3. Se aparecer mensagem dizendo "Já está instalado", está tudo certo
+
+> Sem isso, a transcrição quebra com erro `DLL load failed while importing onnxruntime_pybind11_state` quando você for usar.
+
+#### 0.5 — Git (pra baixar o código do projeto)
+
+1. Acesse https://git-scm.com/download/win
+2. Baixe o instalador (vai começar automático)
+3. Execute. Pode clicar "Next" em todas as opções — os padrões são bons
+4. Reinicie o computador
+
+**Como confirmar:** abra um Terminal e cole:
+
+```powershell
+git --version
+```
+
+Deve aparecer `git version 2.x.x`.
+
+#### 0.6 — Liberar execução de scripts no PowerShell (só Windows)
+
+Por segurança, o Windows bloqueia scripts externos por padrão (incluindo o `npm` que vamos usar). Precisa liberar uma vez.
+
+1. Clique no Menu Iniciar, digite "PowerShell"
+2. Clique com botão direito em "Windows PowerShell" → **"Executar como administrador"**
+3. Cole o comando abaixo e aperte Enter:
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-Confirme com `S` quando perguntado. Feche e reabra o terminal antes de continuar.
+4. Quando aparecer a pergunta, digite **S** e aperte Enter
+5. Feche essa janela do PowerShell
 
 ---
 
-### 1. Clonar e instalar dependências Node
+### Passo 1 — Baixar o código do projeto
 
-Na pasta onde você quer guardar o projeto:
+#### 1.1 — Escolha onde guardar o projeto
 
-```bash
+Crie ou escolha uma pasta no seu computador pra ser o "lar" do projeto. Sugerimos `C:\repos` mas pode ser qualquer lugar (Documentos, Desktop, etc.). Só evite caminhos com espaços ou acentos.
+
+Como criar a pasta:
+1. Abra o Windows Explorer
+2. Navegue até `C:\` (Este Computador → Disco Local C:)
+3. Clique com botão direito num espaço vazio → Novo → Pasta
+4. Nomeie como `repos` (sem espaço, sem acento)
+
+#### 1.2 — Abra o Terminal **dentro dessa pasta**
+
+Siga o método explicado na seção "Antes de começar — entendendo o que é Terminal":
+
+1. Abra `C:\repos` no Windows Explorer
+2. Clique na barra de endereço, apague o que está lá, digite `powershell` e aperte Enter
+3. Você deve ver `PS C:\repos>` na janela que abriu
+
+#### 1.3 — Baixe o código
+
+Cole esses 3 comandos **um de cada vez**, apertando Enter entre cada um:
+
+```powershell
 git clone https://github.com/barbaracosta-pontob/editor-reels-ponto-b.git
+```
+
+Esse primeiro comando vai baixar o projeto e criar uma pasta nova chamada `editor-reels-ponto-b` dentro de `C:\repos`. Demora 10–30 segundos.
+
+```powershell
 cd editor-reels-ponto-b
+```
+
+Esse comando "entra" na pasta recém-baixada. Você vai ver o prompt mudar pra `PS C:\repos\editor-reels-ponto-b>`. Esse caminho que aparece depois do `PS` é onde o Terminal está "olhando" agora.
+
+```powershell
 npm install
 ```
 
-O `npm install` na raiz instala tudo de uma vez — `apps/web`, `apps/remotion`, `services/analysis` e `packages/schema`.
+Esse comando baixa **todas as dependências** do projeto (são mais de mil arquivos pequenos). Pode demorar **5 a 15 minutos** dependendo da sua internet. Vai aparecer muito texto descendo, isso é normal. Espere até voltar o prompt `PS C:\repos\editor-reels-ponto-b>` sem erros vermelhos.
+
+> Você só precisa fazer o passo 1.3 uma vez. Da próxima vez que abrir o projeto, ele já vai estar baixado em `C:\repos\editor-reels-ponto-b`.
 
 ---
 
-### 2. Configurar variáveis de ambiente
+### Passo 2 — Configurar a chave da API do Claude
 
-Na raiz do projeto (`editor-reels-ponto-b/`):
+O editor usa o Claude (IA da Anthropic) pra gerar as cenas. Você precisa de uma chave de API.
 
-**Windows:**
+#### 2.1 — Pegue sua chave da API
+
+1. Acesse https://console.anthropic.com/settings/keys
+2. Faça login (ou crie uma conta, se ainda não tiver)
+3. Clique em **"Create Key"**
+4. Dê um nome (ex: "Editor Ponto B") e clique em criar
+5. **Copie a chave que aparece — ela começa com `sk-ant-...`**. Você só consegue ver essa chave uma vez. Se perder, tem que criar outra.
+
+#### 2.2 — Crie o arquivo de configuração
+
+No mesmo Terminal que você está (deve estar em `C:\repos\editor-reels-ponto-b`), cole:
+
 ```powershell
 copy .env.example .env
 ```
 
-**macOS / Linux:**
-```bash
-cp .env.example .env
-```
+Isso cria um arquivo chamado `.env` na raiz do projeto, baseado no template.
 
-Abra o `.env` e preencha:
+#### 2.3 — Abra o arquivo `.env` e cole sua chave
+
+1. Abra o Windows Explorer em `C:\repos\editor-reels-ponto-b`
+2. Procure o arquivo `.env` (atenção: ele começa com ponto, então pode estar oculto — se não aparecer, vá em "Exibir" → marque "Itens ocultos")
+3. Clique com botão direito → **Abrir com → Bloco de Notas**
+4. Procure a linha `ANTHROPIC_API_KEY=` e cole sua chave logo depois do `=`, sem espaço
+
+O arquivo deve ficar assim:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...    # obrigatório — sua chave em console.anthropic.com
-CLAUDE_MODEL=claude-sonnet-4-6  # deixe assim
-WHISPER_MODEL=large-v3          # use "small" para testar mais rápido
-WHISPER_DEVICE=auto             # auto detecta GPU se disponível
+ANTHROPIC_API_KEY=sk-ant-api03-aBcDeFgHi...    # sua chave aqui
+CLAUDE_MODEL=claude-sonnet-4-6                  # deixe assim
+WHISPER_MODEL=large-v3                          # use "small" para testes mais rápidos
+WHISPER_DEVICE=auto                             # auto detecta GPU
 ```
 
-> O `.env` deve ficar na raiz do projeto. Reinicie o servidor após qualquer alteração nele.
+5. Salve com Ctrl+S e feche o Bloco de Notas.
+
+> **Segurança:** essa chave dá acesso à sua conta da Anthropic e pode gastar seus créditos. Nunca compartilhe esse arquivo `.env` em e-mails, prints ou commits no Git. O projeto já está configurado pra ignorar o `.env` (existe um `.gitignore` cuidando disso).
 
 ---
 
-### 3. Instalar dependências Python
+### Passo 3 — Instalar as dependências do transcritor (Python)
 
-A partir da raiz do projeto (`editor-reels-ponto-b/`):
+A transcrição do áudio roda em Python separado do resto. Precisamos criar um "ambiente Python isolado" só pra ele.
 
-> Crie a venv **com Python 3.12 explicitamente**. Se o `python` padrão da máquina for 3.13/3.14, a transcrição vai quebrar (ver pré-requisitos).
+No Terminal (ainda em `C:\repos\editor-reels-ponto-b`), cole os comandos abaixo **um de cada vez**:
 
-**Windows:**
 ```powershell
 cd services\transcription
+```
+
+Isso entra na subpasta do transcritor. O prompt vai virar `PS C:\repos\editor-reels-ponto-b\services\transcription>`.
+
+```powershell
 py -3.12 -m venv .venv
+```
+
+Isso cria o "ambiente Python isolado" (chamado `.venv`) usando **especificamente** a versão 3.12. Demora 10–30 segundos.
+
+```powershell
 .\.venv\Scripts\pip install -r requirements.txt
+```
+
+Isso instala todas as bibliotecas Python que o transcritor precisa (faster-whisper, ctranslate2, etc.). Demora 3–10 minutos e baixa cerca de 500 MB.
+
+```powershell
 cd ..\..
 ```
 
-**macOS / Linux:**
-```bash
-cd services/transcription
-python3.12 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-cd ../..
-```
+Isso volta pra raiz do projeto. O prompt deve ficar de novo `PS C:\repos\editor-reels-ponto-b>`.
 
-Ao final você deve estar de volta na raiz do projeto.
+> **Atenção sobre o Python 3.12:** o comando `py -3.12` força o uso da versão certa, mesmo que você tenha outras versões instaladas. Se aparecer erro dizendo que "3.12" não foi encontrado, refaça o Passo 0.2.
 
-> Na primeira transcrição o modelo `large-v3` é baixado automaticamente (~3 GB). Use `WHISPER_MODEL=small` no `.env` para pular isso durante testes.
+> Na primeira vez que você usar o editor, ele vai baixar automaticamente o modelo de IA do Whisper (`large-v3`, cerca de 3 GB). Pra evitar esse download durante testes, troque `large-v3` por `small` no arquivo `.env` — usa menos espaço mas a transcrição fica menos precisa.
 
 ---
 
-### 4. Criar pastas necessárias
+### Passo 4 — Criar as pastas que o editor usa
 
-Na raiz do projeto (`editor-reels-ponto-b/`):
+O editor precisa de duas pastas pra guardar arquivos durante o uso. No Terminal (em `C:\repos\editor-reels-ponto-b`), cole:
 
-**Windows:**
 ```powershell
 mkdir jobs
+```
+
+```powershell
 mkdir especialistas
 ```
 
-**macOS / Linux:**
-```bash
-mkdir -p jobs especialistas
-```
+São criadas vazias mesmo — vão se preencher conforme você usar.
 
 ---
 
-### 5. Subir a interface web
+### Passo 5 — Abrir o editor pela primeira vez
 
-Na raiz do projeto (`editor-reels-ponto-b/`):
+Agora que tudo está instalado, **você não vai mais precisar do Terminal pra usar o editor no dia a dia**. A partir daqui é tudo no clique.
 
-```bash
-npm run dev
-```
+1. Feche o Terminal (pode fechar a janela mesmo)
+2. Abra o Windows Explorer em `C:\repos\editor-reels-ponto-b`
+3. Procure o arquivo **`Iniciar Editor.bat`**
+4. **Dê dois cliques nele**
+5. Vai abrir uma janela preta chamada "PontoB Server" — **não feche essa janela**, ela é o servidor rodando por trás. Pode minimizar se quiser.
+6. Aguarde até 30 segundos. O navegador vai abrir sozinho em `http://localhost:3000` mostrando a tela inicial do editor.
 
-Acesse **http://localhost:3000**
+Se o editor abrir, **o setup está completo, parabéns**.
+
+**O que aconteceu por trás dos panos na primeira execução:**
+
+- O `.bat` criou automaticamente um **atalho no seu Desktop** chamado "Ponto B - Video Editor", com o ícone do app (um "B" branco em gradiente azul com um símbolo de play). Da próxima vez você não precisa nem abrir a pasta do projeto — é só clicar no atalho do Desktop.
+- O servidor do editor está rodando localmente na sua máquina (porta 3000). Ninguém fora da sua máquina consegue acessar.
+- Você pode usar o editor normalmente enquanto a janela "PontoB Server" estiver aberta.
+
+**Como encerrar o editor:**
+
+- Feche a aba do navegador (opcional)
+- **Feche a janela preta "PontoB Server"** — é isso que de fato para o servidor
+
+**Como abrir o editor da próxima vez:**
+
+- Opção 1: clique duas vezes no atalho "Ponto B - Video Editor" no Desktop
+- Opção 2: abra a pasta `C:\repos\editor-reels-ponto-b` e clique no `Iniciar Editor.bat`
+- Ambas as opções fazem a mesma coisa
 
 Na interface você consegue:
 - Fazer upload do vídeo bruto

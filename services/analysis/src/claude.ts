@@ -11,6 +11,13 @@ const MAX_TOKENS_REFINE = 8192; // refine escreve bloco <diagnostico> antes do J
 export type AnalyzeParams = {
   transcript: object;
   videoOriginalPath: string;
+  /**
+   * Duracao real do arquivo de video em segundos (obtida via ffprobe).
+   * Quando informada, e usada como teto duro: nenhuma cena pode estender
+   * o reel alem desse limite. Sem esse valor, o limite fisico nao e aplicado
+   * — o agente pode gerar timeline alem do conteudo do video.
+   */
+  videoDuration?: number;
   especialista: {
     nome: string;
     cargo: string;
@@ -151,6 +158,113 @@ function corrigirCoberturaCta(scenes: ReelProps, transcript: object): ReelProps 
     cenas,
     duracao_total_estimada: Math.round(novaSoma * 10) / 10,
   };
+}
+
+// ── Clamp duro: timeline nunca passa do fim do arquivo de video ──────────────
+// Mesmo com o prompt corrigido, mantemos esta rede de seguranca para qualquer
+// regressao futura ou tentativa em que o agente erre.
+//
+// Regras:
+//   1. video_end_segundos <= videoDuration.
+//   2. video_start_segundos + soma(duracao_segundos) <= videoDuration.
+// Se (2) for violada, encolhemos cenas a partir do fim, preservando o CTA
+// quando possivel (CTA cobre a fala de chamada — se cortar, perde a mensagem
+// central do reel). So mexemos no CTA se nao houver mais nada para encolher.
+
+function clampReelToVideoDuration(scenes: ReelProps, videoDuration?: number): ReelProps {
+  if (!videoDuration || videoDuration <= 0) return scenes;
+
+  const scenesRaw = scenes as Record<string, unknown>;
+  const videoStart: number = typeof scenesRaw.video_start_segundos === "number"
+    ? scenesRaw.video_start_segundos as number
+    : 0;
+
+  const availableWindow = Math.max(0, videoDuration - videoStart);
+  const somaCenas = scenes.cenas.reduce((acc, c) => acc + c.duracao_segundos, 0);
+
+  // Tolerancia de arredondamento: 0.1s.
+  const excesso = somaCenas - availableWindow;
+  if (excesso <= 0.1) {
+    // Soma ja cabe — apenas garante que video_end_segundos respeita o teto.
+    const endAtual = typeof scenesRaw.video_end_segundos === "number"
+      ? scenesRaw.video_end_segundos as number
+      : videoStart + somaCenas;
+    const endClampado = Math.min(endAtual, videoDuration);
+    if (Math.abs(endClampado - endAtual) < 0.05) return scenes;
+    return {
+      ...scenes,
+      video_end_segundos: Math.round(endClampado * 10) / 10,
+      duracao_total_estimada: Math.round(somaCenas * 10) / 10,
+    } as ReelProps;
+  }
+
+  console.warn(
+    `[clampReelToVideoDuration] sequencia excede o video em ${excesso.toFixed(2)}s ` +
+    `(soma=${somaCenas.toFixed(2)}s, janela disponivel=${availableWindow.toFixed(2)}s, ` +
+    `videoDuration=${videoDuration}s, video_start=${videoStart}s). Encolhendo cenas a partir do fim.`,
+  );
+
+  const cenas = [...scenes.cenas];
+  let restante = excesso;
+
+  // Indice da ultima cena nao-CTA — tentamos encolher essas primeiro.
+  const ultimaNaoCtaIdx = (() => {
+    for (let i = cenas.length - 1; i >= 0; i--) {
+      if (cenas[i].tipo !== "CTA") return i;
+    }
+    return -1;
+  })();
+
+  // Estrategia: percorre do fim pro inicio, encolhendo cenas (exceto CTA) ate
+  // zerar o excesso. Cada cena tem uma duracao minima de 1s para nao virar nada.
+  const MIN_DURACAO = 1.0;
+  for (let i = cenas.length - 1; i >= 0 && restante > 0.05; i--) {
+    const cena = cenas[i];
+    if (cena.tipo === "CTA" && ultimaNaoCtaIdx !== -1) continue; // pula CTA enquanto houver outras cenas
+    const podeReduzir = Math.max(0, cena.duracao_segundos - MIN_DURACAO);
+    const reduzir = Math.min(podeReduzir, restante);
+    if (reduzir <= 0) continue;
+    const novaDur = Math.round((cena.duracao_segundos - reduzir) * 10) / 10;
+    cenas[i] = { ...cena, duracao_segundos: novaDur };
+    restante = Math.round((restante - reduzir) * 10) / 10;
+    console.warn(
+      `[clampReelToVideoDuration] cena #${i + 1} (${cena.tipo}): ${cena.duracao_segundos}s -> ${novaDur}s ` +
+      `(reduziu ${reduzir.toFixed(2)}s, restante ${restante.toFixed(2)}s)`,
+    );
+  }
+
+  // Se ainda sobrou excesso, encolhe o CTA tambem (ultimo recurso).
+  if (restante > 0.05) {
+    const ctaIdx = cenas.findIndex((c) => c.tipo === "CTA");
+    if (ctaIdx !== -1) {
+      const cta = cenas[ctaIdx];
+      const podeReduzir = Math.max(0, cta.duracao_segundos - MIN_DURACAO);
+      const reduzir = Math.min(podeReduzir, restante);
+      const novaDur = Math.round((cta.duracao_segundos - reduzir) * 10) / 10;
+      cenas[ctaIdx] = { ...cta, duracao_segundos: novaDur };
+      restante = Math.round((restante - reduzir) * 10) / 10;
+      console.warn(
+        `[clampReelToVideoDuration] CTA encolhido em ultimo recurso: ${cta.duracao_segundos}s -> ${novaDur}s`,
+      );
+    }
+  }
+
+  if (restante > 0.05) {
+    console.warn(
+      `[clampReelToVideoDuration] AINDA sobram ${restante.toFixed(2)}s mesmo apos encolher tudo. ` +
+      `Reel pode ter trecho preto/congelado no final.`,
+    );
+  }
+
+  const novaSoma = cenas.reduce((acc, c) => acc + c.duracao_segundos, 0);
+  const novoEnd = Math.min(videoDuration, Math.round((videoStart + novaSoma) * 10) / 10);
+
+  return {
+    ...scenes,
+    cenas,
+    duracao_total_estimada: Math.round(novaSoma * 10) / 10,
+    video_end_segundos: novoEnd,
+  } as ReelProps;
 }
 
 // ── Defaults de SFX por tipo de cena ─────────────────────────────────────────
@@ -300,9 +414,11 @@ export async function analyze(
         duracao_total_estimada: Math.round(somaReal * 10) / 10,
       });
       const scenesNormalizados = corrigirCoberturaCta(scenesComSfx, params.transcript);
+      // Rede de seguranca: garante que o reel nunca extrapola a duracao real do arquivo.
+      const scenesClampados = clampReelToVideoDuration(scenesNormalizados, params.videoDuration);
 
       return {
-        scenes: scenesNormalizados,
+        scenes: scenesClampados,
         metadata: {
           promptVersion: PROMPT_VERSION,
           model,
@@ -333,6 +449,11 @@ export async function analyze(
 export type RefineParams = {
   transcript: object;
   videoOriginalPath: string;
+  /**
+   * Duracao real do arquivo de video em segundos (obtida via ffprobe).
+   * Mesma semantica de AnalyzeParams.videoDuration: teto duro para o reel.
+   */
+  videoDuration?: number;
   cenasAtuais: object;
   brief?: string;
   especialista: {
@@ -427,8 +548,11 @@ export async function refine(
         ? Math.round((trimEnd - trimStart) * 10) / 10
         : Math.round(somaReal * 10) / 10;
       const scenesComSfxR = aplicarSfxDefaults({ ...data, duracao_total_estimada: duracaoTotal });
+      const scenesComCta = corrigirCoberturaCta(scenesComSfxR, params.transcript);
+      // Rede de seguranca: clamp ao fim real do arquivo (mesma logica do analyze).
+      const scenesClampadosR = clampReelToVideoDuration(scenesComCta, params.videoDuration);
       return {
-        scenes: corrigirCoberturaCta(scenesComSfxR, params.transcript),
+        scenes: scenesClampadosR,
         metadata: { promptVersion: PROMPT_VERSION, model, tentativas: tentativa, tokens: tokensAcumulados },
       };
     }

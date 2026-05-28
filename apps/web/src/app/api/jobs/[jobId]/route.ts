@@ -5,32 +5,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import path from "node:path";
 
-const execFileAsync = promisify(execFile);
+import { getVideoDuration } from "../../../../lib/video-duration";
 
 const REPO_ROOT = path.resolve(process.cwd(), "../..");
 const JOBS_DIR = process.env.JOBS_DIR
   ? path.resolve(REPO_ROOT, process.env.JOBS_DIR)
   : path.join(REPO_ROOT, "jobs");
-
-async function getVideoDuration(videoPath: string): Promise<number | null> {
-  if (!existsSync(videoPath)) return null;
-  try {
-    const { stdout } = await execFileAsync("ffprobe", [
-      "-v", "error",
-      "-show_entries", "format=duration",
-      "-of", "default=noprint_wrappers=1:nokey=1",
-      videoPath,
-    ]);
-    const d = parseFloat(stdout.trim());
-    return isNaN(d) ? null : Math.round(d * 10) / 10;
-  } catch {
-    return null;
-  }
-}
 
 export async function GET(
   _req: NextRequest,

@@ -1,6 +1,12 @@
 # Ponto B — Video Editor
 
-Pipeline interno da Ponto B para gerar reels (1080×1920, 60–100s) a partir de vídeos brutos gravados por especialistas.
+Pipeline interno da Ponto B para gerar criativos curtos a partir de vídeos brutos gravados por especialistas. Cada job pode ser renderizado em até três formatos prontos pra mídia paga e orgânica:
+
+- **9:16 Reels** (1080×1920) — Instagram Reels, TikTok, Shorts
+- **16:9 Wide** (1920×1080) — YouTube, criativos display
+- **1:1 Square** (1080×1080) — feed quadrado de Instagram/Facebook
+
+A duração do reel acompanha a duração real do vídeo bruto (com teto em 100s). Vídeos curtos viram reels curtos — o sistema nunca infla overlays além do que existe no arquivo.
 
 **Stack:** Python (faster-whisper) → Claude Sonnet → Remotion → MP4
 
@@ -32,7 +38,7 @@ Se você ou alguém da equipe já fez o setup completo na sua máquina, usar o e
      ↓ Claude Sonnet (gera sequência de cenas)
 [scenes.json — validado por Zod]
      ↓ Remotion (renderiza cada cena como componente React)
-[reel.mp4 — 9:16, 30fps, 60–100s]
+[reel.mp4 — 9:16 / 16:9 / 1:1, 30fps, ate 100s]
 ```
 
 Tudo passa pela interface web em `localhost:3000`. Cada job persiste em `jobs/<job_id>/`.

@@ -95,10 +95,16 @@ function substituirVideoPaths(obj: unknown, videoUrl: string, baseUrl: string): 
   return obj;
 }
 
+// IMPORTANTE: o nome do arquivo de saida usa direto a formatKey
+// (`reel_${formatKey}.mp4`) — sem campo `suffix` intermediario.
+// Versao antiga tinha suffix="reel" para a key "reels", gerando
+// `reel_reel.mp4` em disco enquanto o download tentava buscar
+// `reel_reels.mp4` (HTTP 404). Eliminamos o intermediario para garantir
+// que render e download sempre concordem sobre o nome do arquivo.
 const FORMAT_CONFIG = {
-  reels:  { compositionId: "Reel",       suffix: "reel",   label: "9:16 Reels" },
-  wide:   { compositionId: "ReelWide",   suffix: "wide",   label: "16:9 Wide" },
-  square: { compositionId: "ReelSquare", suffix: "square", label: "1:1 Square" },
+  reels:  { compositionId: "Reel",       label: "9:16 Reels" },
+  wide:   { compositionId: "ReelWide",   label: "16:9 Wide" },
+  square: { compositionId: "ReelSquare", label: "1:1 Square" },
 } as const;
 
 type FormatKey = keyof typeof FORMAT_CONFIG;
@@ -158,7 +164,7 @@ export async function POST(
 
       for (const formatKey of formatos) {
         const fmt = FORMAT_CONFIG[formatKey];
-        const outputPath = path.join(outputDir, `reel_${fmt.suffix}.mp4`);
+        const outputPath = path.join(outputDir, `reel_${formatKey}.mp4`);
         outputs[formatKey] = outputPath;
 
         send({ type: "format_start", format: formatKey, label: fmt.label });

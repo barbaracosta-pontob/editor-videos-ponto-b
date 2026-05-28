@@ -31,11 +31,17 @@ export async function GET(
 
   if (formatParam && VALID_FORMATS.includes(formatParam)) {
     candidates.push({ file: `reel_${formatParam}.mp4`, name: `reel_${formatParam}.mp4` });
+    // Compatibilidade com renders antigos onde a key "reels" gerava
+    // `reel_reel.mp4` (suffix singular) em vez de `reel_reels.mp4`.
+    if (formatParam === "reels") {
+      candidates.push({ file: "reel_reel.mp4", name: "reel_reels.mp4" });
+    }
   }
 
-  // Fallbacks para compatibilidade com renders antigos
+  // Fallbacks finais para compatibilidade com renders muito antigos
   candidates.push(
     { file: "reel_reels.mp4", name: "reel_reels.mp4" },
+    { file: "reel_reel.mp4",  name: "reel_reels.mp4" },
     { file: "reel.mp4",       name: "reel.mp4" },
   );
 

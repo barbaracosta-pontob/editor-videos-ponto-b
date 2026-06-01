@@ -187,7 +187,17 @@ export async function POST(req: NextRequest) {
 
       } catch (err) {
         console.error("[POST /api/jobs]", err);
-        emit({ type: "error", message: String(err) });
+        const raw = err instanceof Error ? err.message : String(err);
+        // Erros de autenticação da Anthropic (AuthenticationError)
+        const message =
+          raw.includes("401") || raw.toLowerCase().includes("authentication") || raw.toLowerCase().includes("api key")
+            ? "Chave de API inválida ou ausente. Verifique o valor de ANTHROPIC_API_KEY no arquivo .env e reinicie o servidor."
+            : raw.includes("529") || raw.toLowerCase().includes("overloaded")
+            ? "A API da Anthropic está sobrecarregada. Aguarde alguns segundos e tente novamente."
+            : raw.includes("rate") || raw.includes("429")
+            ? "Limite de requisições da API atingido. Aguarde alguns segundos e tente novamente."
+            : `Erro ao processar o vídeo: ${raw}`;
+        emit({ type: "error", message });
       } finally {
         controller.close();
       }

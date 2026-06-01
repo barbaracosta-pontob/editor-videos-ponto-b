@@ -101,7 +101,8 @@ export default function Home() {
       }
     } catch (err) {
       console.error("[handleSubmit] falha ao processar o vídeo:", err);
-      toast("Não foi possível processar o vídeo. Veja os detalhes no console (F12).");
+      const msg = err instanceof Error ? err.message : String(err);
+      toast(msg || "Não foi possível processar o vídeo. Veja os detalhes no console (F12).");
       setScreen("upload");
     }
   }

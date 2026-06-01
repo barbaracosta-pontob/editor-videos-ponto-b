@@ -909,11 +909,21 @@ function SuccessScreen({ jobId, outputs, onNew }: { jobId: string; outputs: Reco
     }
   }
 
+  async function runCleanup() {
+    if (!cleanup) return;
+    const res = await fetch(`/api/jobs/${jobId}/cleanup`, { method: "DELETE" });
+    if (!res.ok) {
+      console.warn(`[cleanup] DELETE retornou ${res.status} — arquivos podem ter ficado em disco.`);
+    }
+  }
+
   async function handleDownload(formatKey: string, filename: string) {
     setDownloading(formatKey);
     setDownloadError(null);
     try {
       await baixarArquivo(`/api/jobs/${jobId}/download?format=${formatKey}`, filename);
+      await runCleanup();
+      if (cleanup) onNew();
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -934,13 +944,8 @@ function SuccessScreen({ jobId, outputs, onNew }: { jobId: string; outputs: Reco
       }
       // Todos os arquivos foram realmente recebidos pelo browser.
       // So agora e seguro apagar o diretorio do job no servidor.
-      if (cleanup) {
-        const res = await fetch(`/api/jobs/${jobId}/cleanup`, { method: "DELETE" });
-        if (!res.ok) {
-          console.warn(`[cleanup] DELETE retornou ${res.status} — arquivos podem ter ficado em disco.`);
-        }
-        onNew();
-      }
+      await runCleanup();
+      onNew();
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1006,7 +1011,7 @@ function SuccessScreen({ jobId, outputs, onNew }: { jobId: string; outputs: Reco
               ? "Baixar todos"
               : "Baixar video"}
           </ActionButton>
-          <button onClick={onNew} className={styles.btnSecondary}>Novo video</button>
+          <button onClick={async () => { await runCleanup(); onNew(); }} className={styles.btnSecondary}>Novo video</button>
         </div>
       </div>
     </main>

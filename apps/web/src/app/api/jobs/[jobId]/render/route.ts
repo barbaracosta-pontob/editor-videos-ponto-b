@@ -22,10 +22,33 @@ const JOBS_DIR = process.env.JOBS_DIR
   : path.join(REPO_ROOT, "jobs");
 const REMOTION_DIR = path.join(REPO_ROOT, "apps/remotion");
 
-// Remotion emite linhas como: "Rendered 450/1590" e "2m 30s remaining"
-// Às vezes na mesma linha, às vezes separadas — parseamos tudo que vier
+// Remotion passa por 3 fases distintas durante o render. Cada uma emite
+// padroes de log diferentes:
+//
+//   1. Bundling     — "Bundled" / "Bundling" / "(1/3) Bundling code"
+//   2. Rendering    — "Rendered X/Y" — frame-by-frame via Chromium
+//   3. Encoding     — "Encoded X/Y" / "Stitching" / "Combining" — FFmpeg junta tudo
+//
+// O parser antigo so capturava (2). Quando o Remotion passava para (3) ele
+// parava de emitir "Rendered" e a UI congelava em "Y/Y frames" — mesmo
+// com o servidor ainda trabalhando no encoding.
+
 const FRAME_RE = /Rendered\s+(\d+)\/(\d+)/i;
+const ENCODED_RE = /Encoded\s+(\d+)\/(\d+)/i;
 const ETA_RE = /(\d+h\s*)?(\d+m\s*)?(\d+s)\s+remaining/i;
+
+// Marcadores de transicao de fase (case-insensitive). Detectados via includes
+// em vez de regex completa porque o Remotion pode formatar de varias formas.
+const PHASE_MARKERS: Array<{ pattern: RegExp; phase: RenderPhase }> = [
+  { pattern: /\bbundl(ed|ing)\b/i,                          phase: "bundling" },
+  { pattern: /Composition information loaded/i,              phase: "bundling" },
+  { pattern: /\bRendering frames\b/i,                        phase: "rendering" },
+  { pattern: /\bStitching\b/i,                               phase: "encoding" },
+  { pattern: /\b(Encoding|Combining|Muxing)\b/i,             phase: "encoding" },
+  { pattern: /\bFinaliz(ing|ed)\b/i,                         phase: "encoding" },
+];
+
+type RenderPhase = "bundling" | "rendering" | "encoding";
 
 function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
@@ -72,10 +95,16 @@ function substituirVideoPaths(obj: unknown, videoUrl: string, baseUrl: string): 
   return obj;
 }
 
+// IMPORTANTE: o nome do arquivo de saida usa direto a formatKey
+// (`reel_${formatKey}.mp4`) — sem campo `suffix` intermediario.
+// Versao antiga tinha suffix="reel" para a key "reels", gerando
+// `reel_reel.mp4` em disco enquanto o download tentava buscar
+// `reel_reels.mp4` (HTTP 404). Eliminamos o intermediario para garantir
+// que render e download sempre concordem sobre o nome do arquivo.
 const FORMAT_CONFIG = {
-  reels:  { compositionId: "Reel",       suffix: "reel",   label: "9:16 Reels" },
-  wide:   { compositionId: "ReelWide",   suffix: "wide",   label: "16:9 Wide" },
-  square: { compositionId: "ReelSquare", suffix: "square", label: "1:1 Square" },
+  reels:  { compositionId: "Reel",       label: "9:16 Reels" },
+  wide:   { compositionId: "ReelWide",   label: "16:9 Wide" },
+  square: { compositionId: "ReelSquare", label: "1:1 Square" },
 } as const;
 
 type FormatKey = keyof typeof FORMAT_CONFIG;
@@ -135,7 +164,7 @@ export async function POST(
 
       for (const formatKey of formatos) {
         const fmt = FORMAT_CONFIG[formatKey];
-        const outputPath = path.join(outputDir, `reel_${fmt.suffix}.mp4`);
+        const outputPath = path.join(outputDir, `reel_${formatKey}.mp4`);
         outputs[formatKey] = outputPath;
 
         send({ type: "format_start", format: formatKey, label: fmt.label });
@@ -145,6 +174,20 @@ export async function POST(
           let lastFrames = 0;
           let lastTotal = 0;
           let lastEta = "";
+          let currentPhase: RenderPhase = "bundling";
+          let lastEncodedFrames = 0;
+          let lastEncodedTotal = 0;
+
+          // Heartbeat: durante o encoding o Remotion pode ficar 30-60s sem emitir
+          // linha nova. Manda um sinal "ainda vivo" a cada 2s pra UI nao parecer
+          // congelada — mesmo sem progresso numerico.
+          const heartbeat = setInterval(() => {
+            send({
+              type: "heartbeat",
+              format: formatKey,
+              phase: currentPhase,
+            });
+          }, 2000);
 
           const child = spawn(bin, [
             "render",
@@ -160,31 +203,90 @@ export async function POST(
 
           function processChunk(chunk: Buffer) {
             const raw = chunk.toString();
-            process.stdout.write(raw);
-            lines.push(raw);
             const text = stripAnsi(raw);
+
+            // Detecta transicao de fase. Avanca so para frente (bundling -> rendering -> encoding)
+            // para nao oscilar quando o log mistura termos.
+            for (const marker of PHASE_MARKERS) {
+              if (marker.pattern.test(text)) {
+                const order: RenderPhase[] = ["bundling", "rendering", "encoding"];
+                const idxAtual = order.indexOf(currentPhase);
+                const idxNova = order.indexOf(marker.phase);
+                if (idxNova > idxAtual) {
+                  currentPhase = marker.phase;
+                  send({ type: "phase", format: formatKey, phase: currentPhase });
+                }
+              }
+            }
+
             const frameMatch = text.match(FRAME_RE);
             if (frameMatch) {
               lastFrames = parseInt(frameMatch[1], 10);
               lastTotal = parseInt(frameMatch[2], 10);
+              // "Rendered X/Y" so aparece na fase de rendering — confirma a fase
+              if (currentPhase === "bundling") {
+                currentPhase = "rendering";
+                send({ type: "phase", format: formatKey, phase: currentPhase });
+              }
             }
+
+            const encodedMatch = text.match(ENCODED_RE);
+            if (encodedMatch) {
+              lastEncodedFrames = parseInt(encodedMatch[1], 10);
+              lastEncodedTotal = parseInt(encodedMatch[2], 10);
+              // "Encoded X/Y" indica fase de encoding
+              if (currentPhase !== "encoding") {
+                currentPhase = "encoding";
+                send({ type: "phase", format: formatKey, phase: currentPhase });
+              }
+            }
+
             const etaMatch = text.match(ETA_RE);
             if (etaMatch) {
               lastEta = etaMatch[0].replace(/\s*remaining/i, "").trim();
             }
-            if (lastTotal > 0) {
-              send({ type: "progress", format: formatKey, frames: lastFrames, total: lastTotal, eta: lastEta });
+
+            if (currentPhase === "encoding" && lastEncodedTotal > 0) {
+              send({
+                type: "progress",
+                format: formatKey,
+                phase: "encoding",
+                frames: lastEncodedFrames,
+                total: lastEncodedTotal,
+                eta: lastEta,
+              });
+            } else if (lastTotal > 0) {
+              send({
+                type: "progress",
+                format: formatKey,
+                phase: currentPhase,
+                frames: lastFrames,
+                total: lastTotal,
+                eta: lastEta,
+              });
             }
           }
 
-          child.stdout?.on("data", processChunk);
+          child.stdout?.on("data", (chunk: Buffer) => {
+            const raw = chunk.toString();
+            process.stdout.write(raw);
+            lines.push(raw);
+            processChunk(chunk);
+          });
           child.stderr?.on("data", (chunk: Buffer) => {
-            process.stderr.write(chunk.toString());
-            lines.push(chunk.toString());
+            const raw = chunk.toString();
+            process.stderr.write(raw);
+            lines.push(raw);
+            // Remotion costuma emitir progresso tambem em stderr quando o terminal nao e TTY.
+            processChunk(chunk);
           });
 
-          child.on("close", (code) => resolve(code ?? 1));
+          child.on("close", (code) => {
+            clearInterval(heartbeat);
+            resolve(code ?? 1);
+          });
           child.on("error", (err) => {
+            clearInterval(heartbeat);
             send({ type: "error", message: String(err) });
             resolve(1);
           });

@@ -15,6 +15,7 @@ import crypto from "node:crypto";
 
 import { analyze } from "../../../services/analysis-bridge";
 import { getEspecialistaOrGenerico } from "../../../lib/db";
+import { getVideoDuration } from "../../../lib/video-duration";
 
 const execFileAsync = promisify(execFile);
 
@@ -124,14 +125,20 @@ export async function POST(req: NextRequest) {
           .filter(Boolean)
           .join("\n\n---\nBRIEF DO JOB:\n") || undefined;
 
+        // Obtem duracao real do arquivo de video via ffprobe.
+        // Usada como teto duro para impedir que o agente gere timeline alem
+        // do conteudo do video (resultando em tela preta/congelada no final).
+        const videoDuration = await getVideoDuration(videoPath);
+
         const result = await analyze({
           transcript,
           videoOriginalPath: videoPath,
+          videoDuration: videoDuration ?? undefined,
           especialista,
           brief: briefFinal,
         });
 
-        // Calcula video_end_segundos
+        // Calcula video_end_segundos respeitando o teto fisico do arquivo.
         const scenesRaw = result.scenes as Record<string, unknown>;
         const agentStart = typeof scenesRaw.video_start_segundos === "number"
           ? scenesRaw.video_start_segundos as number
@@ -139,9 +146,12 @@ export async function POST(req: NextRequest) {
         const agentDuracao = typeof scenesRaw.duracao_total_estimada === "number"
           ? scenesRaw.duracao_total_estimada as number
           : (result.scenes.cenas ?? []).reduce((acc: number, c: { duracao_segundos: number }) => acc + c.duracao_segundos, 0);
-        const agentEnd = typeof scenesRaw.video_end_segundos === "number"
+        const endCalculado = typeof scenesRaw.video_end_segundos === "number"
           ? scenesRaw.video_end_segundos as number
           : Math.round((agentStart + agentDuracao) * 10) / 10;
+        const agentEnd = videoDuration != null
+          ? Math.min(endCalculado, videoDuration)
+          : endCalculado;
 
         const scenesComCores = {
           ...result.scenes,

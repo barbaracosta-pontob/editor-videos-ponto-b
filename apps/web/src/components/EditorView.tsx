@@ -405,7 +405,7 @@ export function EditorView({ job, onNew }: EditorViewProps) {
       {showRefineModal && (
         <div className={styles.refineModalOverlay} onClick={() => setShowRefineModal(false)}>
           <div className={styles.refineModal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.refineModalTitle}>? Refinar com IA</div>
+            <div className={styles.refineModalTitle}>&#10022; Refinar com IA</div>
             <p className={styles.refineModalDesc}>
               Descreva o que precisa ser corrigido ou melhorado. O agente vai priorizar suas orientacoes.
             </p>

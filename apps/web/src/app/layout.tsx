@@ -3,8 +3,8 @@ import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
-  title: "Ponto B — Editor de Reels",
-  description: "Ponto B — gerador de reels",
+  title: "Ponto B — Editor de Vídeos",
+  description: "Ponto B — editor de vídeos para especialistas",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

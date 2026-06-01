@@ -26,7 +26,7 @@ type EspecialistaItem = {
 const PIPELINE_STEPS = [
   { num: "01", label: "Transcrição", detail: "Whisper extrai a fala com timestamps" },
   { num: "02", label: "Análise",     detail: "Claude identifica cenas e monta a estrutura" },
-  { num: "03", label: "Renderização", detail: "Remotion gera o reel em 9:16" },
+  { num: "03", label: "Renderização", detail: "Remotion gera o vídeo em 9:16, 16:9 ou 1:1" },
 ];
 
 // ── Home ──────────────────────────────────────────────────────────────────────
@@ -132,12 +132,12 @@ export default function Home() {
           </div>
 
           <h1 className={styles.title}>
-            Ponto B<br /><span>Editor de Reels</span>
+            Ponto B<br /><span>Editor de Vídeos</span>
           </h1>
 
           <p className={styles.description}>
             Suba o vídeo bruto de um expert, descreva o que priorizar
-            e o pipeline gera o reel editado automaticamente.
+            e o pipeline gera o vídeo editado automaticamente.
           </p>
 
           <div className={styles.pipelineSteps}>
@@ -163,7 +163,7 @@ export default function Home() {
       <div className={styles.rightPanel}>
 
         <div className={styles.formHeading}>
-          <h2 className={styles.formTitle}>Novo reel</h2>
+          <h2 className={styles.formTitle}>Novo vídeo</h2>
           <p className={styles.formSubtitle}>Configure e submeta o vídeo para processamento</p>
         </div>
 
@@ -257,7 +257,7 @@ export default function Home() {
           onClick={handleSubmit}
           disabled={!file}
         >
-          {file ? "Analisar e montar reel →" : "Selecione um vídeo para começar"}
+          {file ? "Analisar e montar vídeo →" : "Selecione um vídeo para começar"}
         </ActionButton>
       </div>
     </main>

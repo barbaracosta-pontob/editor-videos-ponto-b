@@ -1,4 +1,4 @@
-# Ponto B — Video Editor
+# Ponto B — Editor de Vídeos
 
 Pipeline interno da Ponto B para gerar criativos curtos a partir de vídeos brutos gravados por especialistas. Cada job pode ser renderizado em até três formatos prontos pra mídia paga e orgânica:
 
@@ -22,7 +22,7 @@ Se você ou alguém da equipe já fez o setup completo na sua máquina, usar o e
 4. Espere cerca de 30 segundos. O navegador vai abrir sozinho em `http://localhost:3000`
 5. Quando terminar de usar, é só fechar a janela "PontoB Server"
 
-> **Dica — atalho no Desktop:** na primeira vez que você rodar o `Iniciar Editor.bat`, ele cria automaticamente um atalho no Desktop chamado "Ponto B - Video Editor" com o ícone do app. Da próxima vez é só clicar no atalho.
+> **Dica — atalho no Desktop:** na primeira vez que você rodar o `Iniciar Editor.bat`, ele cria automaticamente um atalho no Desktop chamado "Ponto B - Editor de Videos" com o ícone do app. Da próxima vez é só clicar no atalho.
 
 **Se você nunca fez o setup, siga o passo a passo completo abaixo.** É demorado (umas duas horas na primeira vez), mas você só faz uma vez por máquina.
 
@@ -330,7 +330,7 @@ Se o editor abrir, **o setup está completo, parabéns**.
 
 **O que aconteceu por trás dos panos na primeira execução:**
 
-- O `.bat` criou automaticamente um **atalho no seu Desktop** chamado "Ponto B - Video Editor", com o ícone do app (um "B" branco em gradiente azul com um símbolo de play). Da próxima vez você não precisa nem abrir a pasta do projeto — é só clicar no atalho do Desktop.
+- O `.bat` criou automaticamente um **atalho no seu Desktop** chamado "Ponto B - Editor de Videos", com o ícone do app (um "B" branco em gradiente azul com um símbolo de play). Da próxima vez você não precisa nem abrir a pasta do projeto — é só clicar no atalho do Desktop.
 - O servidor do editor está rodando localmente na sua máquina (porta 3000). Ninguém fora da sua máquina consegue acessar.
 - Você pode usar o editor normalmente enquanto a janela "PontoB Server" estiver aberta.
 
@@ -341,7 +341,7 @@ Se o editor abrir, **o setup está completo, parabéns**.
 
 **Como abrir o editor da próxima vez:**
 
-- Opção 1: clique duas vezes no atalho "Ponto B - Video Editor" no Desktop
+- Opção 1: clique duas vezes no atalho "Ponto B - Editor de Videos" no Desktop
 - Opção 2: abra a pasta `C:\repos\editor-reels-ponto-b` e clique no `Iniciar Editor.bat`
 - Ambas as opções fazem a mesma coisa
 

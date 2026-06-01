@@ -1,5 +1,5 @@
 @echo off
-title Ponto B - Video Editor
+title Ponto B - Editor de Videos
 
 :: Caminho para a pasta do projeto (ajuste se necessario)
 set PROJECT_DIR=%~dp0
@@ -22,10 +22,10 @@ set PROJECT_DIR=%~dp0
 set BAT_PATH=%~f0
 set ICON_PATH=%PROJECT_DIR%PontoB_Editor.ico
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=[Environment]::GetFolderPath('DesktopDirectory'); $p=Join-Path $d 'Ponto B - Video Editor.lnk'; $icoPath='%ICON_PATH%'; $ws=New-Object -ComObject WScript.Shell; $sc=$ws.CreateShortcut($p); $needsSave=$false; if(-not (Test-Path $p)){$sc.TargetPath='%BAT_PATH%'; $sc.WorkingDirectory='%PROJECT_DIR%'; $sc.Description='Ponto B - Editor de Reels'; $needsSave=$true}; if((Test-Path $icoPath) -and ($sc.IconLocation -notlike '*PontoB_Editor.ico*')){$sc.IconLocation=$icoPath+',0'; $needsSave=$true}; if($needsSave){$sc.Save(); Write-Host ''; Write-Host ('  Atalho atualizado em ' + $p) -ForegroundColor Green; Write-Host ''}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=[Environment]::GetFolderPath('DesktopDirectory'); $p=Join-Path $d 'Ponto B - Editor de Videos.lnk'; $icoPath='%ICON_PATH%'; $ws=New-Object -ComObject WScript.Shell; $sc=$ws.CreateShortcut($p); $needsSave=$false; if(-not (Test-Path $p)){$sc.TargetPath='%BAT_PATH%'; $sc.WorkingDirectory='%PROJECT_DIR%'; $sc.Description='Ponto B - Editor de Videos'; $needsSave=$true}; if((Test-Path $icoPath) -and ($sc.IconLocation -notlike '*PontoB_Editor.ico*')){$sc.IconLocation=$icoPath+',0'; $needsSave=$true}; if($needsSave){$sc.Save(); Write-Host ''; Write-Host ('  Atalho atualizado em ' + $p) -ForegroundColor Green; Write-Host ''}"
 
 echo.
-echo  Ponto B - Video Editor
+echo  Ponto B - Editor de Videos
 echo  Iniciando servidor...
 echo.
 

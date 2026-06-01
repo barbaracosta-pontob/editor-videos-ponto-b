@@ -11,7 +11,7 @@ export function AppNav({ breadcrumb, children, className }: AppNavProps) {
   return (
     <div className={[styles.topbar, className].filter(Boolean).join(" ")}>
       <Link href="/" className={styles.logo}>
-        Ponto B <span>Editor de Reels</span>
+        Ponto B <span>Editor de Vídeos</span>
       </Link>
       {breadcrumb && (
         <>
